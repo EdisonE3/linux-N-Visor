@@ -1022,6 +1022,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		goto out;
 
 	if (mem->guest_phys_addr == vm_kernel_gpa) {
+		printk("boot s-visor secure vm: invoke smc enter");
 		struct task_struct *vm_task;
 		struct sec_vm_info *svi;
 
@@ -1179,6 +1180,8 @@ EXPORT_SYMBOL_GPL(kvm_set_memory_region);
 static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 					  struct kvm_userspace_memory_region *mem)
 {
+	printk("KVM_SET_USER_MEMORY_REGION");
+
 	if ((u16)mem->slot >= KVM_USER_MEM_SLOTS)
 		return -EINVAL;
 
@@ -2743,6 +2746,8 @@ static int kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
  */
 static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 {
+	printk("KVM_CREATE_VCPU %ud", id);
+
 	int r;
 	struct kvm_vcpu *vcpu;
 
@@ -2853,6 +2858,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		return -EINTR;
 	switch (ioctl) {
 	case KVM_RUN: {
+		// printk("KVM_RUN");
 		struct pid *oldpid;
 		r = -EINVAL;
 		if (arg)
@@ -3476,6 +3482,9 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	struct file *file;
 
 	kvm = kvm_create_vm(type);
+
+	printk("KVM_CREATE_VM Type: %lu kvm addr: %p", type, kvm);
+
 	if (IS_ERR(kvm))
 		return PTR_ERR(kvm);
 #ifdef CONFIG_KVM_MMIO
