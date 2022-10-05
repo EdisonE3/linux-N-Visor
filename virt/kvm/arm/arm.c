@@ -851,6 +851,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			ret = kvm_vcpu_run_vhe(vcpu);
 			kvm_arm_vhe_guest_exit();
 		} else {
+			printk("KVM_RUN_NVHE_CPU");
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu);
 		}
 

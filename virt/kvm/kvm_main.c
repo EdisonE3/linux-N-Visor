@@ -1040,7 +1040,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		goto out;
 
 	if (mem->guest_phys_addr == vm_kernel_gpa) {
-		printk("boot s-visor secure vm: invoke smc enter");
+		printk("boot s-visor secure vm: invoke smc enter\n");
 		struct task_struct *vm_task;
 		struct sec_vm_info *svi;
 
@@ -1066,6 +1066,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		smc_req->sec_vm_id = kvm->arch.sec_vm_id;
 		smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
 		uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
+		// printk("qemu s1ptp: %u\n", qemu_s1ptp);
 		smc_req->boot.qemu_s1ptp = qemu_s1ptp;
 		smc_req->boot.nr_vcpu = kvm->created_vcpus;
 		kvm_call_hyp(__boot_s_visor_secure_vm_nvhe);
