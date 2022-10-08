@@ -38,6 +38,15 @@
 extern struct exception_table_entry __start___kvm_ex_table;
 extern struct exception_table_entry __stop___kvm_ex_table;
 
+
+static const char __hyp_mar[] = "MARK TEST: %d\n";
+static void __hyp_text __debug_print(int x)
+{
+	unsigned long str_va;
+	asm volatile("ldr %0, =%1" : "=r"(str_va) : "S"(__hyp_mar));
+	__hyp_do_panic(str_va, x);
+}
+
 /* Check whether the FP regs were dirtied while in the host-side run loop: */
 static bool __hyp_text update_fp_enabled(struct kvm_vcpu *vcpu)
 {
@@ -85,7 +94,7 @@ static void __hyp_text __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 static void __hyp_text __activate_traps_common(struct kvm_vcpu *vcpu)
 {
 	/* Trap on AArch32 cp15 c15 (impdef sysregs) accesses (EL1 or EL0) */
-	write_sysreg(1 << 15, hstr_el2);
+	// write_sysreg(1 << 15, hstr_el2);
 
 	/*
 	 * Make sure we trap PMU access from EL0 to EL2. Also sanitize
@@ -93,9 +102,9 @@ static void __hyp_text __activate_traps_common(struct kvm_vcpu *vcpu)
 	 * counter, which could make a PMXEVCNTR_EL0 access UNDEF at
 	 * EL1 instead of being trapped to EL2.
 	 */
-	write_sysreg(0, pmselr_el0);
-	write_sysreg(ARMV8_PMU_USERENR_MASK, pmuserenr_el0);
-	write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
+	// write_sysreg(0, pmselr_el0);
+	// write_sysreg(ARMV8_PMU_USERENR_MASK, pmuserenr_el0);
+	// write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
 }
 
 static void __hyp_text __deactivate_traps_common(void)
@@ -550,11 +559,10 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 NOKPROBE_SYMBOL(kvm_vcpu_run_vhe);
 
 /* Switch to the guest for legacy non-VHE systems */
-int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
+int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs)
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;
-	void* gp_regs = get_gp_reg_region(smp_processor_id());
 	u64 exit_code;
 
 	vcpu = kern_hyp_va(vcpu);
@@ -562,6 +570,8 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
 	host_ctxt->__hyp_running_vcpu = vcpu;
 	guest_ctxt = &vcpu->arch.ctxt;
+
+	// asm volatile("smc 0x18\n\t");
 
 	__sysreg_save_state_nvhe(host_ctxt);
 	__debug_save_host_buffers_nvhe(vcpu);
@@ -581,8 +591,6 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	__debug_switch_to_guest(vcpu);
 
 	__set_guest_arch_workaround_state(vcpu);
-
-	trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
 
 	do {
 		/* Jump in the fire! */
@@ -616,10 +624,11 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	return exit_code;
 }
 
-static const char __hyp_panic_string[] = "HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
+static const char __hyp_panic_string[] =
+	"HYP panic:\nPS:%08llx PC:%016llx ESR:%08llx\nFAR:%016llx HPFAR:%016llx PAR:%016llx\nVCPU:%p\n";
 
-static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par,
-					     struct kvm_cpu_context *__host_ctxt)
+static void __hyp_text __hyp_call_panic_nvhe(
+	u64 spsr, u64 elr, u64 par, struct kvm_cpu_context *__host_ctxt)
 {
 	struct kvm_vcpu *vcpu;
 	unsigned long str_va;
@@ -638,12 +647,10 @@ static void __hyp_text __hyp_call_panic_nvhe(u64 spsr, u64 elr, u64 par,
 	 * making sure it is a kernel address and not a PC-relative
 	 * reference.
 	 */
-	asm volatile("ldr %0, =%1" : "=r" (str_va) : "S" (__hyp_panic_string));
+	asm volatile("ldr %0, =%1" : "=r"(str_va) : "S"(__hyp_panic_string));
 
-	__hyp_do_panic(str_va,
-		       spsr,  elr,
-		       read_sysreg(esr_el2),   read_sysreg_el2(far),
-		       read_sysreg(hpfar_el2), par, vcpu);
+	__hyp_do_panic(str_va, spsr, elr, read_sysreg(esr_el2),
+		       read_sysreg_el2(far), read_sysreg(hpfar_el2), par, vcpu);
 }
 
 static void __hyp_call_panic_vhe(u64 spsr, u64 elr, u64 par,
@@ -655,10 +662,8 @@ static void __hyp_call_panic_vhe(u64 spsr, u64 elr, u64 par,
 	__deactivate_traps(vcpu);
 	sysreg_restore_host_state_vhe(host_ctxt);
 
-	panic(__hyp_panic_string,
-	      spsr,  elr,
-	      read_sysreg_el2(esr),   read_sysreg_el2(far),
-	      read_sysreg(hpfar_el2), par, vcpu);
+	panic(__hyp_panic_string, spsr, elr, read_sysreg_el2(esr),
+	      read_sysreg_el2(far), read_sysreg(hpfar_el2), par, vcpu);
 }
 NOKPROBE_SYMBOL(__hyp_call_panic_vhe);
 

@@ -852,7 +852,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			kvm_arm_vhe_guest_exit();
 		} else {
 			printk("KVM_RUN_NVHE_CPU");
-			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu);
+			void* gp_regs = get_gp_reg_region(smp_processor_id());
+			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
+			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
 		}
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
