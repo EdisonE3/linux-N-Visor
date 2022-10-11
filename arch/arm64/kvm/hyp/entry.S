@@ -118,10 +118,10 @@ ENTRY(__guest_enter_s_visor_fastpath)
 	// affect the host. If any asynchronous exception is pending we defer
 	// the guest entry. The DSB isn't necessary before v8.2 as any SError
 	// would be fatal.
-	alternative_if ARM64_HAS_RAS_EXTN
+alternative_if ARM64_HAS_RAS_EXTN
 	dsb	nshst
 	isb
-	alternative_else_nop_endif
+alternative_else_nop_endif
 	mrs	x1, isr_el1
 	cbz	x1,  1f
 	mov	x0, #ARM_EXCEPTION_IRQ

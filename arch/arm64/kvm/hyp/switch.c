@@ -94,7 +94,7 @@ static void __hyp_text __activate_traps_fpsimd32(struct kvm_vcpu *vcpu)
 static void __hyp_text __activate_traps_common(struct kvm_vcpu *vcpu)
 {
 	/* Trap on AArch32 cp15 c15 (impdef sysregs) accesses (EL1 or EL0) */
-	// write_sysreg(1 << 15, hstr_el2);
+	write_sysreg(1 << 15, hstr_el2);
 
 	/*
 	 * Make sure we trap PMU access from EL0 to EL2. Also sanitize
@@ -102,9 +102,9 @@ static void __hyp_text __activate_traps_common(struct kvm_vcpu *vcpu)
 	 * counter, which could make a PMXEVCNTR_EL0 access UNDEF at
 	 * EL1 instead of being trapped to EL2.
 	 */
-	// write_sysreg(0, pmselr_el0);
-	// write_sysreg(ARMV8_PMU_USERENR_MASK, pmuserenr_el0);
-	// write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
+	write_sysreg(0, pmselr_el0);
+	write_sysreg(ARMV8_PMU_USERENR_MASK, pmuserenr_el0);
+	write_sysreg(vcpu->arch.mdcr_el2, mdcr_el2);
 }
 
 static void __hyp_text __deactivate_traps_common(void)
@@ -566,6 +566,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs)
 	u64 exit_code;
 
 	vcpu = kern_hyp_va(vcpu);
+	void *gp_regs_hyp = kern_hyp_va(gp_regs);
 
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
 	host_ctxt->__hyp_running_vcpu = vcpu;
@@ -594,7 +595,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs)
 
 	do {
 		/* Jump in the fire! */
-		exit_code = __guest_enter_s_visor_fastpath(vcpu, host_ctxt, gp_regs);
+		exit_code = __guest_enter_s_visor_fastpath(vcpu, host_ctxt, gp_regs_hyp);
 
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));
