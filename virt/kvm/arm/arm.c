@@ -853,12 +853,15 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		} else {
 			printk("KVM_RUN_NVHE_CPU");
 			
-			// request shared memory
+			// get shared memory
 			void* gp_regs = get_gp_reg_region(smp_processor_id());
+			printk("point address: %u\n", vcpu);
+			create_hyp_mappings(gp_regs, gp_regs + 8 * 30, PAGE_HYP);
 			
 			// set the smc parameters
 			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
 			
+			// gp_regs = virt_to_phys(gp_regs);
 			// go to guest 
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
 		}

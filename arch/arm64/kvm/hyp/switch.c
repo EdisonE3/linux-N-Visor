@@ -39,8 +39,8 @@ extern struct exception_table_entry __start___kvm_ex_table;
 extern struct exception_table_entry __stop___kvm_ex_table;
 
 
-static const char __hyp_mar[] = "MARK TEST: %d\n";
-static void __hyp_text __debug_print(int x)
+static const char __hyp_mar[] = "MARK TEST: %u\n";
+static void __hyp_text __debug_print(unsigned int x)
 {
 	unsigned long str_va;
 	asm volatile("ldr %0, =%1" : "=r"(str_va) : "S"(__hyp_mar));
@@ -566,7 +566,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs)
 	u64 exit_code;
 
 	vcpu = kern_hyp_va(vcpu);
-	void *gp_regs_hyp = kern_hyp_va(gp_regs);
+	gp_regs = kern_hyp_va(gp_regs);
 
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
 	host_ctxt->__hyp_running_vcpu = vcpu;
@@ -595,7 +595,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs)
 
 	do {
 		/* Jump in the fire! */
-		exit_code = __guest_enter_s_visor_fastpath(vcpu, host_ctxt, gp_regs_hyp);
+		exit_code = __guest_enter_s_visor_fastpath(vcpu, host_ctxt, gp_regs);
 
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));
