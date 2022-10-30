@@ -2885,7 +2885,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		return -EINTR;
 	switch (ioctl) {
 	case KVM_RUN: {
-		printk("KVM_RUN");
+		// printk("KVM_RUN");
 		struct pid *oldpid;
 		r = -EINVAL;
 		if (arg)
