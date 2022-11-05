@@ -566,7 +566,9 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	u64 exit_code;
 
 	// get shared memory
-	void* gp_regs = get_gp_reg_region(smp_processor_id());
+	int core_id;		
+	asm volatile("mrs %0, tpidr_el2\n\t" : "=r"(core_id));
+	void* gp_regs = get_gp_reg_region(core_id);
 	printk("point address: %u\n", vcpu);
 
 	vcpu = kern_hyp_va(vcpu);

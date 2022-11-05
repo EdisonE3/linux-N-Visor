@@ -851,15 +851,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			ret = kvm_vcpu_run_vhe(vcpu);
 			kvm_arm_vhe_guest_exit();
 		} else {
-			printk("KVM_RUN_NVHE_CPU");
-			
-			create_hyp_mappings(gp_regs, gp_regs + 8 * 30, PAGE_HYP);
-			
-			// set the smc parameters
-			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
-			
-			// gp_regs = virt_to_phys(gp_regs);
-			// go to guest 
+			printk("KVM RUN NVHE CPU");
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu);
 		}
 
