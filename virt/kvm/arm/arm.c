@@ -59,19 +59,20 @@ __asm__(".arch_extension	virt");
 #define S_VISOR_MAX_SUPPORTED_PHYSICAL_CORE_NUM 4
 #define S_VISOR_MAX_SIZE_PER_CORE (2048 + 64)
 __attribute__((aligned(PAGE_SIZE))) uint64_t shared_register_pages[S_VISOR_MAX_SUPPORTED_PHYSICAL_CORE_NUM * S_VISOR_MAX_SIZE_PER_CORE];
+#define shared_register_pages_el2 kern_hyp_va(shared_register_pages)
 
 void* __hyp_text get_s_visor_shared_buf(void)
 {
-	return (shared_register_pages + smp_processor_id() * S_VISOR_MAX_SIZE_PER_CORE);
+	return (shared_register_pages_el2 + smp_processor_id() * S_VISOR_MAX_SIZE_PER_CORE);
 }
 
 void* __hyp_text  get_gp_reg_region(unsigned int core_id) {
-	uint64_t *ptr = shared_register_pages + core_id * S_VISOR_MAX_SIZE_PER_CORE;
+	uint64_t *ptr = shared_register_pages_el2 + core_id * S_VISOR_MAX_SIZE_PER_CORE;
 	return (void *)ptr;
 }
 
 kvm_smc_req_t* __hyp_text get_smc_req_region(unsigned int core_id) {
-	uint64_t *ptr = shared_register_pages + core_id * S_VISOR_MAX_SIZE_PER_CORE;
+	uint64_t *ptr = shared_register_pages_el2 + core_id * S_VISOR_MAX_SIZE_PER_CORE;
 	/* First 32 entries are for guest gp_regs */
 	return (kvm_smc_req_t *)(ptr + 32);
 }
