@@ -559,7 +559,7 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 NOKPROBE_SYMBOL(kvm_vcpu_run_vhe);
 
 /* Switch to the guest for legacy non-VHE systems */
-int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
+int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, u32 sec_vm_id, u32 vcpu_id)
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;
@@ -598,6 +598,9 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 	__debug_switch_to_guest(vcpu);
 
 	__set_guest_arch_workaround_state(vcpu);
+
+	// set smc request
+	__trap_s_visor_enter_guest(sec_vm_id, vcpu_id);
 
 	do {
 		/* Jump in the fire! */
