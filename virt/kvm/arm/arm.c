@@ -131,18 +131,6 @@ void kvm_arch_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
-void __hyp_text __trap_s_visor_enter_guest(u32 sec_vm_id, u32 vcpu_id){
-	int core_id;
-	kvm_smc_req_t* smc_req;
-
-	asm volatile("mrs %0, tpidr_el2\n\t" : "=r"(core_id));
-
-	smc_req = get_smc_req_region(smp_processor_id());
-	smc_req->sec_vm_id = sec_vm_id;
-	smc_req->vcpu_id = vcpu_id;
-	smc_req->req_type = REQ_KVM_TO_S_VISOR_GENERAL;
-}
-
 void trap_s_visor_enter_guest(u32 sec_vm_id, u32 vcpu_id)
 {
 	kvm_smc_req_t* smc_req = get_smc_req_region(smp_processor_id());

@@ -83,7 +83,6 @@ typedef struct {
 
 void flush_s_visor_shadow_page_tables(void);
 void trap_s_visor_enter_guest(u32 sec_vm_id, u32 vcpu_id);
-void __trap_s_visor_enter_guest(u32 sec_vm_id, u32 vcpu_id);
 kvm_smc_req_t *get_smc_req_region(unsigned int core_id);
 void *get_gp_reg_region(unsigned int core_id);
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
