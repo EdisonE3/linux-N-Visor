@@ -1729,7 +1729,7 @@ static inline void register_s_visor_shared_memory(void) {
 			    shared_register_pages +
 				    S_VISOR_MAX_SUPPORTED_PHYSICAL_CORE_NUM *
 					    S_VISOR_MAX_SIZE_PER_CORE,
-			    PAGE_HYP_EXEC);
+			    PAGE_HYP);
 
 	asm volatile("mov x1, %0\n"::"r"(virt_to_phys(shared_register_pages)): "x1");
 	local_irq_disable();
