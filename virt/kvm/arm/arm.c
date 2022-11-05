@@ -225,7 +225,7 @@ void destroy_s_visor_secure_vm(u32 sec_vm_id)
 	local_irq_disable();
 	asm volatile("smc 0x18\n\t");
 	local_irq_enable();
-	ret = sec_mem_compact_pool(0);
+	// ret = sec_mem_compact_pool(0);
 }
 
 /**
@@ -853,9 +853,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		} else {
 			printk("KVM_RUN_NVHE_CPU");
 			
-			// get shared memory
-			void* gp_regs = get_gp_reg_region(smp_processor_id());
-			printk("point address: %u\n", vcpu);
 			create_hyp_mappings(gp_regs, gp_regs + 8 * 30, PAGE_HYP);
 			
 			// set the smc parameters
@@ -863,7 +860,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			
 			// gp_regs = virt_to_phys(gp_regs);
 			// go to guest 
-			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
+			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu);
 		}
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;

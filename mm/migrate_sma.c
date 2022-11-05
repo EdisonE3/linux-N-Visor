@@ -314,7 +314,7 @@ int migrate_sma_pages(struct list_head *from, new_page_t get_new_page,
 	unsigned long src_base_pfn = page_to_pfn(head_page);
 	struct sec_mem_cache *dst_cache = (struct sec_mem_cache *)private;
 	unsigned long dst_base_pfn = dst_cache->base_pfn;
-	kvm_smc_req_t* smc_req;
+	// kvm_smc_req_t* smc_req;
 	INIT_LIST_HEAD(&unmapped_head);
 	INIT_LIST_HEAD(&moved_head);
 
@@ -334,15 +334,15 @@ int migrate_sma_pages(struct list_head *from, new_page_t get_new_page,
 	}
 	is_migrating = false;
 
-	smc_req = get_smc_req_region(smp_processor_id());
-	smc_req->sec_vm_id = migrate_sec_vm_id;
-	smc_req->req_type = REQ_KVM_TO_S_VISOR_REMAP_IPA;
-	smc_req->remap_ipa.src_start_pfn = src_base_pfn;
-	smc_req->remap_ipa.dst_start_pfn = dst_base_pfn;
-	smc_req->remap_ipa.nr_pages = (8 << (20 - 12));
-	memcpy(smc_req->remap_ipa.ipn_list, migrate_ipns, sizeof(migrate_ipns));
+	// smc_req = get_smc_req_region(smp_processor_id());
+	// smc_req->sec_vm_id = migrate_sec_vm_id;
+	// smc_req->req_type = REQ_KVM_TO_S_VISOR_REMAP_IPA;
+	// smc_req->remap_ipa.src_start_pfn = src_base_pfn;
+	// smc_req->remap_ipa.dst_start_pfn = dst_base_pfn;
+	// smc_req->remap_ipa.nr_pages = (8 << (20 - 12));
+	// memcpy(smc_req->remap_ipa.ipn_list, migrate_ipns, sizeof(migrate_ipns));
 	local_irq_disable();
-	asm volatile("smc #0x18\n");
+	// asm volatile("smc #0x18\n");
 	local_irq_enable();
 
 	/* S-visor has copied secure memory, change mode to SYNC_NO_COPY */
