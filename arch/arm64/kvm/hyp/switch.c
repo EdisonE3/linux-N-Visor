@@ -559,11 +559,15 @@ int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 NOKPROBE_SYMBOL(kvm_vcpu_run_vhe);
 
 /* Switch to the guest for legacy non-VHE systems */
-int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs)
+int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;
 	u64 exit_code;
+
+	// get shared memory
+	void* gp_regs = get_gp_reg_region(smp_processor_id());
+	printk("point address: %u\n", vcpu);
 
 	vcpu = kern_hyp_va(vcpu);
 	gp_regs = kern_hyp_va(gp_regs);
