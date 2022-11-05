@@ -973,7 +973,23 @@ extern void boot_s_visor_secure_vm(int, int);
 static atomic_t sec_vm_cnt = ATOMIC_INIT(0);
 
 /* trap to secure world */
-void __hyp_text __boot_s_visor_secure_vm_nvhe(){
+void __hyp_text __boot_s_visor_secure_vm_nvhe(u32 sec_vm_id, u64 nr_vcpu){
+	// set smc request
+	u64 qemu_s1ptp;		
+	u64 core_id;
+	kvm_smc_req_t *smc_req;
+
+	asm volatile("mrs %0, ttbr0_el2\n\t" : "=r"(qemu_s1ptp));
+	asm volatile("mrs %0, tpidr_el2\n\t" : "=r"(core_id));
+
+	smc_req = get_smc_req_region(core_id);
+	smc_req->sec_vm_id = sec_vm_id;
+	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+	smc_req->boot.nr_vcpu = nr_vcpu;
+	smc_req->boot.qemu_s1ptp = qemu_s1ptp;
+	
+
+	// go to secure world
 	local_irq_disable();
 	asm volatile("smc 0x18\n\t");
 	local_irq_enable();
@@ -1061,17 +1077,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		vm_task->sec_vm_info = svi;
 		kvm->arch.sec_vm_id = atomic_inc_return(&sec_vm_cnt) + 1;
 
-		// boot_s_visor_secure_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
-		kvm_smc_req_t *smc_req = get_smc_req_region(smp_processor_id());
-		smc_req->sec_vm_id = kvm->arch.sec_vm_id;
-		smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
-		uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
-		// printk("qemu s1ptp: %u\n", qemu_s1ptp);
-		int qemu_s1ptp;		
-		asm volatile("mrs %0, tpidr_el2\n\t" : "=r"(qemu_s1ptp));
-		smc_req->boot.qemu_s1ptp = qemu_s1ptp;
-		smc_req->boot.nr_vcpu = kvm->created_vcpus;
-		kvm_call_hyp(__boot_s_visor_secure_vm_nvhe);
+		kvm_call_hyp(__boot_s_visor_secure_vm_nvhe, kvm->arch.sec_vm_id, kvm->created_vcpus);
 	}
 
 	new = old = *slot;

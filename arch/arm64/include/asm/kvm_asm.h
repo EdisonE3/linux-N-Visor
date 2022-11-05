@@ -65,7 +65,7 @@ extern int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu);
 
 extern int __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu);
 
-extern void __boot_s_visor_secure_vm_nvhe(void);
+extern void __boot_s_visor_secure_vm_nvhe(u32 sec_vm_id, u64 nr_vcpu);
 extern uint64_t __read_ttbr0_el2(void);
 
 extern u64 __vgic_v3_get_ich_vtr_el2(void);
