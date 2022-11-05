@@ -1067,6 +1067,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
 		uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
 		// printk("qemu s1ptp: %u\n", qemu_s1ptp);
+		int qemu_s1ptp;		
+		asm volatile("mrs %0, tpidr_el2\n\t" : "=r"(qemu_s1ptp));
 		smc_req->boot.qemu_s1ptp = qemu_s1ptp;
 		smc_req->boot.nr_vcpu = kvm->created_vcpus;
 		kvm_call_hyp(__boot_s_visor_secure_vm_nvhe);
