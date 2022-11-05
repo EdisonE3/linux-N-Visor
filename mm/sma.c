@@ -329,12 +329,12 @@ static void sec_mem_migrate_failure_callback(
 
 inline static void update_s_visor_top(uint64_t top_pfn)
 {
-	kvm_smc_req_t *smc_req;
-	smc_req = get_smc_req_region(smp_processor_id());
-	smc_req->top_pfn = top_pfn;
-	smc_req->req_type = REQ_KVM_TO_S_VISOR_UPDATE_TOP;
+	// kvm_smc_req_t *smc_req;
+	// smc_req = get_smc_req_region(smp_processor_id());
+	// smc_req->top_pfn = top_pfn;
+	// smc_req->req_type = REQ_KVM_TO_S_VISOR_UPDATE_TOP;
 	local_irq_disable();
-	asm volatile("smc 0x18\n\t");
+	// asm volatile("smc 0x18\n\t");
 	local_irq_enable();
 }
 
