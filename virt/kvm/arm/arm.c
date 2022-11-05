@@ -1728,10 +1728,10 @@ static inline void register_s_visor_shared_memory(void) {
 }
 
 void flush_s_visor_shadow_page_tables() {
-	kvm_smc_req_t* kvm_smc_flush_req = get_smc_req_region(smp_processor_id());
-	kvm_smc_flush_req->req_type = REQ_KVM_TO_S_VISOR_FLUSH_IPA;
+	// kvm_smc_req_t* kvm_smc_flush_req = get_smc_req_region(smp_processor_id());
+	// kvm_smc_flush_req->req_type = REQ_KVM_TO_S_VISOR_FLUSH_IPA;
 	local_irq_disable();
-	asm volatile("smc #0x18\n");
+	// asm volatile("smc #0x18\n");
 	local_irq_enable();
 }
 EXPORT_SYMBOL(flush_s_visor_shadow_page_tables);
