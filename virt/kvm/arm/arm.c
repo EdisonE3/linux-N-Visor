@@ -855,13 +855,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			
 			// get shared memory
 			void* gp_regs = get_gp_reg_region(smp_processor_id());
-			printk("point address: %u\n", vcpu);
-			create_hyp_mappings(gp_regs, gp_regs + 8 * 30, PAGE_HYP);
 			
 			// set the smc parameters
 			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
 			
-			// gp_regs = virt_to_phys(gp_regs);
 			// go to guest 
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
 		}
@@ -1732,6 +1729,12 @@ void kvm_arch_irq_bypass_start(struct irq_bypass_consumer *cons)
 
 
 static inline void register_s_visor_shared_memory(void) {
+	create_hyp_mappings(shared_register_pages,
+			    shared_register_pages +
+				    S_VISOR_MAX_SUPPORTED_PHYSICAL_CORE_NUM *
+					    S_VISOR_MAX_SIZE_PER_CORE,
+			    PAGE_HYP);
+
 	asm volatile("mov x1, %0\n"::"r"(virt_to_phys(shared_register_pages)): "x1");
 	local_irq_disable();
 	asm volatile("smc #0x10\n");
