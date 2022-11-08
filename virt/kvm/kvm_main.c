@@ -974,10 +974,11 @@ extern void boot_s_visor_secure_vm(int, int);
 static atomic_t sec_vm_cnt = ATOMIC_INIT(0);
 
 /* trap to secure world */
-void __hyp_text __boot_s_visor_secure_vm_nvhe(void *smc_req_t, u32 sec_vm_id, u64 nr_vcpu){
-	// kvm_smc_req_t *smc_req = get_smc_req_region_by_base(core_id, base_address);
+void* __hyp_text __boot_s_visor_secure_vm_nvhe(unsigned int core_id, void *base_address, u32 sec_vm_id, u64 nr_vcpu){
+	kvm_smc_req_t *smc_req = get_smc_req_region_by_base(core_id, base_address);
 	
-	kvm_smc_req_t * smc_req = (kvm_smc_req_t *)smc_req_t;
+	void *r_void = smc_req;
+	// kvm_smc_req_t * smc_req = (kvm_smc_req_t *)smc_req_t;
 	
 	smc_req = kern_hyp_va(smc_req);
 	smc_req->sec_vm_id = sec_vm_id;
@@ -989,6 +990,8 @@ void __hyp_text __boot_s_visor_secure_vm_nvhe(void *smc_req_t, u32 sec_vm_id, u6
 	local_irq_disable();
 	asm volatile("smc 0x18\n\t");
 	local_irq_enable();
+
+	return r_void;
 }
 
 /* read value of ttbr0_el2 */
@@ -1074,8 +1077,14 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		kvm->arch.sec_vm_id = atomic_inc_return(&sec_vm_cnt) + 1;
 
 		// boot_s_visor_secure_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
-		kvm_smc_req_t *smc_req = get_smc_req_region(smp_processor_id());
+		unsigned int core_id = smp_processor_id();
+		void *base_address = get_s_visor_shared_base_address();
+
+		kvm_smc_req_t *smc_req = get_smc_req_region(core_id);
+
 		printk("boot s-visor secure vm: smc_req = %llx", smc_req);
+		printk("boot s-visor secure vm: base_address = %llx", base_address);
+		printk("boot s-visor secure vm: core_id = %llx", core_id);
 		// smc_req->sec_vm_id = kvm->arch.sec_vm_id;
 		// smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
 		// uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
@@ -1083,8 +1092,9 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		// smc_req->boot.qemu_s1ptp = qemu_s1ptp;
 		// smc_req->boot.nr_vcpu = kvm->created_vcpus;
 
-		kvm_call_hyp(__boot_s_visor_secure_vm_nvhe, smc_req,
+		void *r_void = kvm_call_hyp(__boot_s_visor_secure_vm_nvhe, core_id, base_address,
 			     kvm->arch.sec_vm_id, kvm->created_vcpus);
+		printk("boot s-visor secure vm: r_void = %llx", r_void);
 	}
 
 	new = old = *slot;
