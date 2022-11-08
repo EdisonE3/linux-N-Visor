@@ -61,6 +61,7 @@
 
 #include <asm/kvm_asm.h>
 #include <asm/kvm_hyp.h>
+#include <asm/kvm_mmu.h>
 
 #include "coalesced_mmio.h"
 #include "async_pf.h"
@@ -973,7 +974,18 @@ extern void boot_s_visor_secure_vm(int, int);
 static atomic_t sec_vm_cnt = ATOMIC_INIT(0);
 
 /* trap to secure world */
-void __hyp_text __boot_s_visor_secure_vm_nvhe(){
+void __hyp_text __boot_s_visor_secure_vm_nvhe(void *smc_req_t, u32 sec_vm_id, u64 nr_vcpu){
+	// kvm_smc_req_t *smc_req = get_smc_req_region_by_base(core_id, base_address);
+	
+	kvm_smc_req_t * smc_req = (kvm_smc_req_t *)smc_req_t;
+	
+	smc_req = kern_hyp_va(smc_req);
+	smc_req->sec_vm_id = sec_vm_id;
+	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+	uint64_t qemu_s1ptp = __read_ttbr0_el2();
+	smc_req->boot.qemu_s1ptp = qemu_s1ptp;
+	smc_req->boot.nr_vcpu = nr_vcpu;
+
 	local_irq_disable();
 	asm volatile("smc 0x18\n\t");
 	local_irq_enable();
@@ -1063,13 +1075,16 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 		// boot_s_visor_secure_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
 		kvm_smc_req_t *smc_req = get_smc_req_region(smp_processor_id());
-		smc_req->sec_vm_id = kvm->arch.sec_vm_id;
-		smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
-		uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
-		// printk("qemu s1ptp: %u\n", qemu_s1ptp);
-		smc_req->boot.qemu_s1ptp = qemu_s1ptp;
-		smc_req->boot.nr_vcpu = kvm->created_vcpus;
-		kvm_call_hyp(__boot_s_visor_secure_vm_nvhe);
+		printk("boot s-visor secure vm: smc_req = %llx", smc_req);
+		// smc_req->sec_vm_id = kvm->arch.sec_vm_id;
+		// smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+		// uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
+		// // printk("qemu s1ptp: %u\n", qemu_s1ptp);
+		// smc_req->boot.qemu_s1ptp = qemu_s1ptp;
+		// smc_req->boot.nr_vcpu = kvm->created_vcpus;
+
+		kvm_call_hyp(__boot_s_visor_secure_vm_nvhe, smc_req,
+			     kvm->arch.sec_vm_id, kvm->created_vcpus);
 	}
 
 	new = old = *slot;

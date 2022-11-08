@@ -76,6 +76,24 @@ inline kvm_smc_req_t *get_smc_req_region(unsigned int core_id) {
 	return (kvm_smc_req_t *)(ptr + 32);
 }
 
+inline void *get_s_visor_shared_base_address(void)
+{
+	return shared_register_pages;
+}
+
+kvm_smc_req_t* __hyp_text get_smc_req_region_by_base(unsigned int core_id, void *base){
+	uint64_t *ptr = base + core_id * S_VISOR_MAX_SIZE_PER_CORE;
+	/* First 32 entries are for guest gp_regs */
+	return (kvm_smc_req_t *)(ptr + 32);
+}
+
+
+void* __hyp_text get_gp_reg_region_by_base(unsigned int core_id, void *base){
+	uint64_t *ptr = base + core_id * S_VISOR_MAX_SIZE_PER_CORE;
+	return (void *)ptr;
+}
+
+
 DEFINE_PER_CPU(kvm_cpu_context_t, kvm_host_cpu_state);
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
 
