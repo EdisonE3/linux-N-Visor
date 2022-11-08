@@ -82,7 +82,11 @@ inline void *get_s_visor_shared_base_address(void)
 }
 
 kvm_smc_req_t* __hyp_text get_smc_req_region_by_base(unsigned int core_id, void *base){
-	uint64_t *ptr = base + core_id * S_VISOR_MAX_SIZE_PER_CORE;
+	uint64_t stored_base;
+	asm volatile("mov %0,  x18" : "=r" (stored_base));
+	
+	uint64_t *ptr = (uint64_t *)stored_base; 
+	ptr = ptr + core_id * S_VISOR_MAX_SIZE_PER_CORE;
 	/* First 32 entries are for guest gp_regs */
 	return (kvm_smc_req_t *)(ptr + 32);
 }
