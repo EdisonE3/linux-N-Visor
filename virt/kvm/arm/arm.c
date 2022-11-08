@@ -81,11 +81,29 @@ inline void *get_s_visor_shared_base_address(void)
 	return shared_register_pages;
 }
 
+static unsigned int __hyp_text get_core_id(void)
+{
+	return 0;
+}
+
+void * __hyp_text get_s_visor_shared_buf_by_base(void)
+{
+	uint64_t stored_base;
+	asm volatile("mov %0,  x18" : "=r" (stored_base));
+	uint64_t *ptr;
+	ptr = (uint64_t *)stored_base; 
+	void *shared_buf;
+	shared_buf = ptr + get_core_id() * S_VISOR_MAX_SIZE_PER_CORE;
+	shared_buf = kern_hyp_va(shared_buf);
+	return shared_buf;
+}
+
 kvm_smc_req_t* __hyp_text get_smc_req_region_by_base(unsigned int core_id, void *base){
 	uint64_t stored_base;
 	asm volatile("mov %0,  x18" : "=r" (stored_base));
 	
-	uint64_t *ptr = (uint64_t *)stored_base; 
+	uint64_t *ptr;
+	ptr = (uint64_t *)stored_base; 
 	ptr = ptr + core_id * S_VISOR_MAX_SIZE_PER_CORE;
 	/* First 32 entries are for guest gp_regs */
 	return (kvm_smc_req_t *)(ptr + 32);
@@ -881,6 +899,11 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			// set the smc parameters
 			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
 			
+			// save base_address to x18
+			void *base_address = get_s_visor_shared_base_address();
+			uint64_t x18_value = base_address;	
+			asm volatile("mov x18,  %0" : : "r" (x18_value));
+
 			// go to guest 
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
 		}

@@ -32,6 +32,14 @@
 	.text
 	.pushsection	.hyp.text, "ax"
 
+.macro save_share_base_address_register ctxt
+	str     x18, [\ctxt, #CPU_XREG_OFFSET(18)]
+.endm
+
+.macro restore_share_base_address_register ctxt
+	ldr		x18, [\ctxt, #CPU_XREG_OFFSET(18)]
+.endm
+
 .macro save_callee_saved_regs ctxt
 	stp	x19, x20, [\ctxt, #CPU_XREG_OFFSET(19)]
 	stp	x21, x22, [\ctxt, #CPU_XREG_OFFSET(21)]
@@ -113,6 +121,9 @@ ENTRY(__guest_enter_s_visor_fastpath)
 
 	// Store the host regs
 	save_callee_saved_regs x1
+
+	// Store the host regs x18
+	save_share_base_address_register x1
 
 	// Now the host state is stored if we have a pending RAS SError it must
 	// affect the host. If any asynchronous exception is pending we defer
@@ -205,10 +216,15 @@ ENTRY(__guest_exit)
 	// Store the guest regs x2 and x3
 	stp	x2, x3,   [x1, #CPU_XREG_OFFSET(2)]
 
+	// Restore the host regs x18
+	ldp	x2, x3, [sp], #16
+	get_host_ctxt	x2, x3
+	restore_share_base_address_register x2
+
 	// Retrieve the guest regs x0-x1 from the stack
 	ldp	x2, x3, [sp], #16	// x0, x1
 	stp	x0, x1, [sp, #-16]!	// return code, vcpu
-	bl 	get_s_visor_shared_buf // change x0, x1, x2
+	bl 	get_s_visor_shared_buf_by_base // change x0, x1, x2
 	ldp     x2, x1,   [sp], #16     // return_code, vcpu
 
 	/*
