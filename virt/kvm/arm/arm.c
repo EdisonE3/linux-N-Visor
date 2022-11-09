@@ -102,7 +102,7 @@ void * __hyp_text get_s_visor_shared_buf_by_base(void)
 	void *shared_buf;
 
 	core_id_offset = get_core_id() * S_VISOR_MAX_SIZE_PER_CORE;
-	asm volatile("mov %0,  x18" : "=r" (stored_base));
+	asm volatile("mov %0,  x14" : "=r" (stored_base));
 	ptr = (uint64_t *)stored_base; 
 
 	shared_buf = ptr + core_id_offset;
@@ -113,7 +113,7 @@ void * __hyp_text get_s_visor_shared_buf_by_base(void)
 
 kvm_smc_req_t* __hyp_text get_smc_req_region_by_base(unsigned int core_id, void *base){
 	uint64_t stored_base;
-	asm volatile("mov %0,  x18" : "=r" (stored_base));
+	asm volatile("mov %0,  x14" : "=r" (stored_base));
 	
 	uint64_t *ptr;
 	ptr = (uint64_t *)stored_base; 
@@ -916,8 +916,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			
 			// save base_address to x18
 			void *base_address = get_s_visor_shared_base_address();
-			uint64_t x18_value = base_address;	
-			asm volatile("mov x18,  %0" : : "r" (x18_value));
+			uint64_t x14_value = base_address;	
+			asm volatile("mov x14,  %0" : : "r" (x14_value));
 
 			unsigned int tmp_core_id = kvm_call_hyp(get_core_id);
 			void* tmp_gp_regs = kvm_call_hyp(get_s_visor_shared_buf_by_base);
@@ -925,7 +925,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			printk("get s visor shared buf by base: %llx\n", tmp_gp_regs);
 
 			// go to guest 
-			asm volatile("mov x18,  %0" : : "r" (x18_value));
+			asm volatile("mov x14,  %0" : : "r" (x14_value));
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
 		}
 

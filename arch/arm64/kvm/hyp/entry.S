@@ -33,11 +33,11 @@
 	.pushsection	.hyp.text, "ax"
 
 .macro save_share_base_address_register ctxt
-	str     x18, [\ctxt, #CPU_XREG_OFFSET(18)]
+	str     x14, [\ctxt, #CPU_XREG_OFFSET(14)]
 .endm
 
 .macro restore_share_base_address_register ctxt
-	ldr		x18, [\ctxt, #CPU_XREG_OFFSET(18)]
+	ldr		x14, [\ctxt, #CPU_XREG_OFFSET(14)]
 .endm
 
 .macro save_callee_saved_regs ctxt

@@ -1092,8 +1092,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		// smc_req->boot.qemu_s1ptp = qemu_s1ptp;
 		// smc_req->boot.nr_vcpu = kvm->created_vcpus;
 
-		uint64_t x18_value = base_address;	
-		asm volatile("mov x18,  %0" : : "r" (x18_value));
+		uint64_t x14_value = base_address;	
+		asm volatile("mov x14,  %0" : : "r" (x14_value));
 
 		void *r_void = kvm_call_hyp(__boot_s_visor_secure_vm_nvhe, core_id, base_address,
 			     kvm->arch.sec_vm_id, kvm->created_vcpus);
