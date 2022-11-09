@@ -276,8 +276,6 @@ ENTRY(__guest_exit)
 	// Now restore the host regs
 	restore_callee_saved_regs x2
 
-	smc #0x18
-
 alternative_if ARM64_HAS_RAS_EXTN
 	// If we have the RAS extensions we can consume a pending error
 	// without an unmask-SError and isb.
@@ -303,8 +301,6 @@ alternative_else
 	msr	daifclr, #4	// Unmask aborts
 alternative_endif
 
-	smc #0x18
-
 	// This is our single instruction exception window. A pending
 	// SError is guaranteed to occur at the earliest when we unmask
 	// it, and at the latest just after the ISB.
@@ -314,7 +310,7 @@ abort_guest_exit_start:
 
 abort_guest_exit_end:
 	msr	daifset, #4	// Mask aborts
-	ret
+	ret // 在这里return了
 
 	_kvm_extable	abort_guest_exit_start, 9997f
 	_kvm_extable	abort_guest_exit_end, 9997f
