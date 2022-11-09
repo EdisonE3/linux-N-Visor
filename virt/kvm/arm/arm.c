@@ -81,19 +81,32 @@ inline void *get_s_visor_shared_base_address(void)
 	return shared_register_pages;
 }
 
-static unsigned int __hyp_text get_core_id(void)
+unsigned int __hyp_text get_core_id(void)
 {
-	return 0;
+	unsigned int core_id;
+	asm volatile("mrs	x0, mpidr_el1\n\t"
+	"tst	x0,#0x1000000\n\t"
+	"lsl	x3,x0,#8\n\t"
+	"csel	x3,x3,x0,eq\n\t"
+	"ubfx	x0,x3,#8,#8\n\t"
+	"ubfx   x1,x3,#16,#8\n\t"
+	"add    %0,x0,x1,lsl #2" : "=r"(core_id));
+	return core_id;
 }
 
 void * __hyp_text get_s_visor_shared_buf_by_base(void)
 {
+	uint64_t core_id_offset;
 	uint64_t stored_base;
-	asm volatile("mov %0,  x18" : "=r" (stored_base));
-	uint64_t *ptr;
-	ptr = (uint64_t *)stored_base; 
+	uint64_t *ptr; 
 	void *shared_buf;
-	shared_buf = ptr + get_core_id() * S_VISOR_MAX_SIZE_PER_CORE;
+
+	core_id_offset = get_core_id() * S_VISOR_MAX_SIZE_PER_CORE;
+	asm volatile("mov %0,  x18" : "=r" (stored_base));
+	ptr = (uint64_t *)stored_base; 
+
+	shared_buf = ptr + core_id_offset;
+
 	shared_buf = kern_hyp_va(shared_buf);
 	return shared_buf;
 }
@@ -895,7 +908,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			
 			// get shared memory
 			void* gp_regs = get_gp_reg_region(smp_processor_id());
-			
+			printk("smp_processor_id core_id: %lu\n", smp_processor_id());
+			printk("get gp_regs: %llx\n", kern_hyp_va(gp_regs));
+
 			// set the smc parameters
 			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
 			
@@ -904,7 +919,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			uint64_t x18_value = base_address;	
 			asm volatile("mov x18,  %0" : : "r" (x18_value));
 
+			unsigned int tmp_core_id = kvm_call_hyp(get_core_id);
+			void* tmp_gp_regs = kvm_call_hyp(get_s_visor_shared_buf_by_base);
+			printk("get core id: tmp_core_id: %lu\n", tmp_core_id);
+			printk("get s visor shared buf by base: %llx\n", tmp_gp_regs);
+
 			// go to guest 
+			asm volatile("mov x18,  %0" : : "r" (x18_value));
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
 		}
 

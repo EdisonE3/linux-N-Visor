@@ -119,11 +119,12 @@ ENTRY(__guest_enter_s_visor_fastpath)
 	// x3-x17: clobbered by macros
 	// x18: guest context
 
-	// Store the host regs
-	save_callee_saved_regs x1
-
 	// Store the host regs x18
 	save_share_base_address_register x1
+
+	// Store the host regs
+	save_callee_saved_regs x1
+	
 
 	// Now the host state is stored if we have a pending RAS SError it must
 	// affect the host. If any asynchronous exception is pending we defer
@@ -224,7 +225,7 @@ ENTRY(__guest_exit)
 	// Retrieve the guest regs x0-x1 from the stack
 	ldp	x2, x3, [sp], #16	// x0, x1
 	stp	x0, x1, [sp, #-16]!	// return code, vcpu
-	bl 	get_s_visor_shared_buf_by_base // change x0, x1, x2
+	bl 	get_s_visor_shared_buf_by_base // change x0, x1, x2 | x0:shared buf
 	ldp     x2, x1,   [sp], #16     // return_code, vcpu
 
 	/*
@@ -234,6 +235,7 @@ ENTRY(__guest_exit)
 	 * should the gp regs be saved and restored.
 	 */
 	// Retrive guest regs x0-x30
+	// store data from shared memory to vcpu
 	ldp 	x3, x4,   [x0, #CPU_XREG_OFFSET(0)]
 	stp 	x3, x4,   [x1, #CPU_XREG_OFFSET(0)]
 	ldp 	x3, x4,   [x0, #CPU_XREG_OFFSET(2)]
@@ -274,6 +276,8 @@ ENTRY(__guest_exit)
 	// Now restore the host regs
 	restore_callee_saved_regs x2
 
+	smc #0x18
+
 alternative_if ARM64_HAS_RAS_EXTN
 	// If we have the RAS extensions we can consume a pending error
 	// without an unmask-SError and isb.
@@ -298,6 +302,8 @@ alternative_else
 	nop
 	msr	daifclr, #4	// Unmask aborts
 alternative_endif
+
+	smc #0x18
 
 	// This is our single instruction exception window. A pending
 	// SError is guaranteed to occur at the earliest when we unmask
