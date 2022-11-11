@@ -725,6 +725,7 @@ void release_pages(struct page **pages, int nr)
 	unsigned int uninitialized_var(lock_batch);
 
 	bool is_sec_vm = false;
+	// 生成一个叫做sec_mem_page的list head
 	LIST_HEAD(sec_mem_pages);
 	struct task_struct *vm_task = current->group_leader;
 	struct sec_vm_info *svi = vm_task ? vm_task->sec_vm_info : NULL;

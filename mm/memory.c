@@ -3252,6 +3252,7 @@ out_release:
 	return ret;
 }
 
+// 这两个声明似乎没有起作用
 extern struct device secure_memory_dev;
 extern struct page *dma_alloc_from_contiguous(struct device *,
         size_t, unsigned int, bool);
