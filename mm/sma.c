@@ -31,6 +31,7 @@
 
 /* Utils */
 
+//现在看起来这些似乎没什么用
 unsigned long migrate_times = 0;
 unsigned long migrate_cycles = 0;
 unsigned long topup_times = 0;
@@ -38,8 +39,14 @@ unsigned long topup_cycles = 0;
 unsigned long topup_nr_pages = 0;
 EXPORT_SYMBOL(topup_nr_pages);
 
+// 用来分配cma_pool
 struct sma global_sma;
 
+// 比较两个sec_vm_cache
+// a = b就报错
+// a < b -> -1
+// a > b -> 1
+// used in sort
 static int sec_mem_cache_cmp(void *priv,
 		struct list_head *a, struct list_head *b) {
 	struct sec_mem_cache *smc_a =
@@ -52,6 +59,7 @@ static int sec_mem_cache_cmp(void *priv,
 	return (smc_a->base_pfn < smc_b->base_pfn) ? -1 : 1;
 }
 
+// 计算compact后，哪些page可以用
 static inline unsigned long avail_pages_after_compact(struct cma_pool *pool) {
 	struct cma *cma = pool->cma;
 	return (cma->base_pfn + cma->count) -
@@ -63,6 +71,7 @@ static inline unsigned long avail_pages_after_compact(struct cma_pool *pool) {
 static struct sec_vm_info __dummy_svi;
 static struct sec_vm_info *dummy_svi = &__dummy_svi;
 
+// 初始化sec_mem_pool
 void __init sec_mem_init_pools(phys_addr_t selected_size,
 		phys_addr_t selected_base, phys_addr_t limit, bool fixed) {
 	struct cma_pool *pool = NULL;
@@ -72,22 +81,28 @@ void __init sec_mem_init_pools(phys_addr_t selected_size,
 			__func__, __LINE__, selected_size, selected_base);
 
 	pool = &global_sma.pools[DEFAULT_POOL];
+	// 根据传入的参数，把需要保存的mem存入 &pool->cma 中
 	ret = dma_contiguous_reserve_area(selected_size, selected_base,
 			0, &pool->cma, fixed);
 	if (ret != 0) {
 		pr_err("%s:%d Failed to reserve memory for SMA, ret = %d\n",
 				__func__, __LINE__, ret);
 	}
+
 	pool->top_pfn = pool->cma->base_pfn;
 	INIT_LIST_HEAD(&pool->used_cache_list);
+	
 	pool->nr_free_cache = 0;
 	INIT_LIST_HEAD(&pool->free_cache_list);
+	
 	mutex_init(&pool->pool_lock);
 
+	// 可能是用来测试能不能用....
 	INIT_LIST_HEAD(&dummy_svi->inactive_cache_list);
 	mutex_init(&dummy_svi->vm_lock);
 }
 
+// 清理page上的信息
 static inline void reset_page_states(struct page *page)
 {
 	init_page_count(page);
@@ -109,9 +124,12 @@ static inline void reset_page_states(struct page *page)
  *
  * The memory type of *owner_vm* can be different from *sec_pool_type*.
  */
+// call when there is a need to allocate memory to sec_vm
 struct sec_mem_cache *sec_mem_topup_cache(
 		struct sec_vm_info *owner_vm, enum sec_pool_type sec_pool_type) {
+	// 根据sec_pool_type找到对应的pool
 	struct cma_pool *target_pool = &global_sma.pools[sec_pool_type];
+	
 	struct list_head *used_head;
 	struct sec_mem_cache *ret = NULL;
 	struct page *cache_pages = NULL;
@@ -128,8 +146,10 @@ struct sec_mem_cache *sec_mem_topup_cache(
 		return NULL;
 	}
 
+	// 为cache分配空间
 	ret = kmalloc(sizeof(struct sec_mem_cache), GFP_KERNEL);
 	ret->base_pfn = page_to_pfn(cache_pages);
+
 	/* Update allocated memory range of target CMA */
 	if (target_pool->top_pfn != ret->base_pfn) {
 		kfree(ret);
@@ -137,6 +157,8 @@ struct sec_mem_cache *sec_mem_topup_cache(
 		mutex_unlock(&target_pool->pool_lock);
 		return NULL;
 	}
+
+	// 更新top_pfn
 	target_pool->top_pfn += SMA_CACHE_PAGES;
 	ret->bitmap = kzalloc(SMA_CACHE_BITMAP_SIZE, GFP_KERNEL);
 	if (!ret->bitmap) {
@@ -159,6 +181,7 @@ struct sec_mem_cache *sec_mem_topup_cache(
 }
 
 /* Try to allocate from local cache or secure memory pool. */
+// page fault的时候会被调用
 struct page *sec_mem_alloc_page_local(struct sec_vm_info *owner_vm) {
 	struct cma_pool *target_pool;
 	struct sec_mem_cache *current_cache;
@@ -170,6 +193,7 @@ struct page *sec_mem_alloc_page_local(struct sec_vm_info *owner_vm) {
 	mutex_lock(&target_pool->pool_lock);
 	current_cache = owner_vm->active_cache;
 
+	// 如果还没有分配cache，就分配一个
 	if (!current_cache) {
 		current_cache = sec_mem_topup_cache(owner_vm, owner_vm->sec_pool_type);
 		if (!current_cache) {
@@ -180,12 +204,15 @@ struct page *sec_mem_alloc_page_local(struct sec_vm_info *owner_vm) {
 	}
 
 	mutex_lock(&current_cache->cache_lock);
+	// 找到一个空闲的page
 	bitmap_no = find_next_zero_bit(current_cache->bitmap, SMA_CACHE_PAGES, 0);
 	BUG_ON(bitmap_no >= SMA_CACHE_PAGES);
 
 	bitmap_set(current_cache->bitmap, bitmap_no, 1);
 	pfn = current_cache->base_pfn + bitmap_no;
 
+	// 如果cache已经满了，就把它从active_cache中移除，然后加入inactive_cache_list
+	// 下次进入的时候会分配一个新的cache
 	if (bitmap_full(current_cache->bitmap, SMA_CACHE_PAGES)) {
 
 		/* Add the fullfilled cache to *inactive_cache_list* */
@@ -205,18 +232,23 @@ struct page *sec_mem_alloc_page_local(struct sec_vm_info *owner_vm) {
 
 /* Secure Memory Free */
 
+// 释放给定VM的page
 void sec_mem_free_page(struct sec_vm_info *owner_vm, struct page *page) {
 	/* Find the cache according to pfn, clear the bit in bitmap */
 	struct sec_mem_cache *current_cache;
+
+	// get the basic information of page
 	unsigned long pfn = page_to_pfn(page);
 	unsigned long cache_base_pfn = pfn & ~SMA_CACHE_PG_MASK;
 	unsigned long bitmap_no = pfn - cache_base_pfn;
 	bool from_inactive = false;
 
 	mutex_lock(&owner_vm->vm_lock);
+	// get the cache of the active cache of current vm
 	current_cache = owner_vm->active_cache;
 
 	/* Page is not in active cache */
+	// 如果page不在active cache中，就从inactive cache中找
 	if (!current_cache || cache_base_pfn != current_cache->base_pfn) {
 		struct sec_mem_cache *smc_it;
 		current_cache = NULL;
@@ -241,6 +273,7 @@ void sec_mem_free_page(struct sec_vm_info *owner_vm, struct page *page) {
 
 	mutex_lock(&current_cache->cache_lock);
 
+	// 测试bitmap_no是否已经被clear
 	if (!test_bit(bitmap_no, current_cache->bitmap)) {
 		pr_err("%s:%d ERROR pfn %lx already freed in this cache, refcount = %d\n",
 				__func__, __LINE__, page_to_pfn(page), page_count(page));
@@ -253,9 +286,11 @@ void sec_mem_free_page(struct sec_vm_info *owner_vm, struct page *page) {
 		pr_err("%s:%d ERROR pfn %lx mapcount = %d, index = 0x%lx\n",
 				__func__, __LINE__, page_to_pfn(page), page_mapcount(page), page->index);
 
+	// clear the page and bitmap
 	reset_page_states(page);
 	put_page(page);
 	bitmap_clear(current_cache->bitmap, bitmap_no, 1);
+	// 如果cache已经空了，就将它的状态从used改为free
 	if (bitmap_empty(current_cache->bitmap, SMA_CACHE_PAGES)) {
 		/*
 		 * This cache is free now, 1) remove it from used_cache_list,
@@ -291,9 +326,10 @@ void sec_mem_free_page(struct sec_vm_info *owner_vm, struct page *page) {
 }
 
 /* Secure Memory Compaction */
-
+// find a page as dst, which is used to store the data of src
 static struct page *sec_mem_get_migrate_dst(struct page *page,
 		unsigned long private) {
+	
 	struct sec_mem_cache *dst_cache = (struct sec_mem_cache *)private;
 	unsigned long dst_base_pfn = dst_cache->base_pfn;
 	unsigned long page_offset = page_to_pfn(page) & SMA_CACHE_PG_MASK;
@@ -338,7 +374,7 @@ inline static void update_s_visor_top(uint64_t top_pfn)
 	local_irq_enable();
 }
 
-
+// 在destroy_vm的时候，会调用这个函数
 int sec_mem_compact_pool(enum sec_pool_type target_type) {
 	struct cma_pool *target_pool;
 	struct list_head *used_head, *free_head;
