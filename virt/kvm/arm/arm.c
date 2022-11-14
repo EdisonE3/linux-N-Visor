@@ -925,7 +925,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			// printk("get s visor shared buf by base: %llx\n", tmp_gp_regs);
 
 			// go to guest 
-			asm volatile("mov x14,  %0" : : "r" (x14_value));
+			// asm volatile("mov x14,  %0" : : "r" (x14_value));
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs);
 		}
 
