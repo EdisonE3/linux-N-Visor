@@ -76,58 +76,6 @@ inline kvm_smc_req_t *get_smc_req_region(unsigned int core_id) {
 	return (kvm_smc_req_t *)(ptr + 32);
 }
 
-inline void *get_s_visor_shared_base_address(void)
-{
-	return shared_register_pages;
-}
-
-unsigned int __hyp_text get_core_id(void)
-{
-	unsigned int core_id;
-	asm volatile("mrs	x0, mpidr_el1\n\t"
-	"tst	x0,#0x1000000\n\t"
-	"lsl	x3,x0,#8\n\t"
-	"csel	x3,x3,x0,eq\n\t"
-	"ubfx	x0,x3,#8,#8\n\t"
-	"ubfx   x1,x3,#16,#8\n\t"
-	"add    %0,x0,x1,lsl #2" : "=r"(core_id));
-	return core_id;
-}
-
-void * __hyp_text get_s_visor_shared_buf_by_base(void)
-{
-	uint64_t core_id_offset;
-	uint64_t stored_base;
-	uint64_t *ptr; 
-	void *shared_buf;
-
-	core_id_offset = get_core_id() * S_VISOR_MAX_SIZE_PER_CORE;
-	asm volatile("mov %0,  x14" : "=r" (stored_base));
-	ptr = (uint64_t *)stored_base; 
-
-	shared_buf = ptr + core_id_offset;
-
-	shared_buf = kern_hyp_va(shared_buf);
-	return shared_buf;
-}
-
-kvm_smc_req_t* __hyp_text get_smc_req_region_by_base(unsigned int core_id, void *base){
-	uint64_t stored_base;
-	asm volatile("mov %0,  x14" : "=r" (stored_base));
-	
-	uint64_t *ptr;
-	ptr = (uint64_t *)stored_base; 
-	ptr = ptr + core_id * S_VISOR_MAX_SIZE_PER_CORE;
-	/* First 32 entries are for guest gp_regs */
-	return (kvm_smc_req_t *)(ptr + 32);
-}
-
-
-void* __hyp_text get_gp_reg_region_by_base(unsigned int core_id, void *base){
-	uint64_t *ptr = base + core_id * S_VISOR_MAX_SIZE_PER_CORE;
-	return (void *)ptr;
-}
-
 unsigned int __hyp_text get_smp_processor_id(void)
 {
 	unsigned int core_id;
@@ -929,18 +877,21 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			ret = kvm_vcpu_run_vhe(vcpu);
 			kvm_arm_vhe_guest_exit();
 		} else {
-			printk("kvm_run_nvhe: start\n");
-
-			// set the smc parameters
-			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
+			// kvm_info("KVM RUN NVHE: start\n");
 			
-			// get shared buffer
-			void* gp_regs = get_gp_reg_region(smp_processor_id());
-			void *base_address = get_s_visor_shared_base_address();
-		
-			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs, base_address);
-		
-			printk("kvm_run_nvhe: end\n");
+			// set smc parameters
+			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
+
+			// get shared memory
+			void* gp_regs;
+			void* base_address;
+			gp_regs = get_gp_reg_region(smp_processor_id());
+			base_address = get_gp_reg_region(0);
+
+			// go to el2
+			ret = kvm_call_hyp_ret(__kvm_vcpu_run_nvhe, vcpu, gp_regs, base_address);
+
+			// kvm_info("KVM RUN NVHE: end\n");
 		}
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
@@ -1809,15 +1760,22 @@ void kvm_arch_irq_bypass_start(struct irq_bypass_consumer *cons)
 
 
 static inline void register_s_visor_shared_memory(void) {
-	create_hyp_mappings(shared_register_pages,
+	int ret;
+	ret = create_hyp_mappings(shared_register_pages,
 			    shared_register_pages +
 				    S_VISOR_MAX_SUPPORTED_PHYSICAL_CORE_NUM *
 					    S_VISOR_MAX_SIZE_PER_CORE,
 			    PAGE_HYP);
-
+	if (!ret)
+	{
+		kvm_info("create memory map with el2 successfully\n");
+	}
+	
 	asm volatile("mov x1, %0\n"::"r"(virt_to_phys(shared_register_pages)): "x1");
 	local_irq_disable();
 	asm volatile("smc #0x10\n");
+	kvm_info("Registered s_visor shared memory va: %llx, pa: %llx successfully\n", 
+	shared_register_pages, virt_to_phys(shared_register_pages));
 	local_irq_enable();
 }
 
