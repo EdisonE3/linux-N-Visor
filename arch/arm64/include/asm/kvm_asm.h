@@ -63,7 +63,7 @@ extern void __kvm_timer_set_cntvoff(u32 cntvoff_low, u32 cntvoff_high);
 
 extern int kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu);
 
-extern int __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs);
+extern int __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs, void *share_buf_base_address);
 
 extern void* __boot_s_visor_secure_vm_nvhe(unsigned int core_id, void *base_address, u32 sec_vm_id, u64 nr_vcpu);
 extern uint64_t __read_ttbr0_el2(void);
