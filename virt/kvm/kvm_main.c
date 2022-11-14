@@ -1076,10 +1076,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		vm_task->sec_vm_info = svi;
 		kvm->arch.sec_vm_id = atomic_inc_return(&sec_vm_cnt) + 1;
 
-		// boot_s_visor_secure_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
-		unsigned int core_id = smp_processor_id();
-		void *base_address = get_s_visor_shared_base_address();
-
 		boot_rmm_realm_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
 	}
 
