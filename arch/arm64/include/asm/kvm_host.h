@@ -91,6 +91,10 @@ void *get_s_visor_shared_base_address(void);
 kvm_smc_req_t *get_smc_req_region_by_base(unsigned int core_id, void *base);
 void *get_gp_reg_region_by_base(unsigned int core_id, void *base);
 
+// el2
+unsigned int get_smp_processor_id(void);
+void *get_shared_buf_with_rmm(uint64_t * shared_buf);
+
 #define __KVM_HAVE_ARCH_INTC_INITIALIZED
 
 #define KVM_USER_MEM_SLOTS 512

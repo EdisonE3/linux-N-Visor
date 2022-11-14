@@ -128,6 +128,31 @@ void* __hyp_text get_gp_reg_region_by_base(unsigned int core_id, void *base){
 	return (void *)ptr;
 }
 
+unsigned int __hyp_text get_smp_processor_id(void)
+{
+	unsigned int core_id;
+	asm volatile("mrs	x0, mpidr_el1\n\t"
+	"tst	x0,#0x1000000\n\t"
+	"lsl	x3,x0,#8\n\t"
+	"csel	x3,x3,x0,eq\n\t"
+	"ubfx	x0,x3,#8,#8\n\t"
+	"ubfx   x1,x3,#16,#8\n\t"
+	"add    %0,x0,x1,lsl #2" : "=r"(core_id));
+	return core_id;
+}
+
+// 自动获取当前VM用于储存通用寄存器的shared region
+void* __hyp_text get_shared_buf_with_rmm(uint64_t * base_address)
+{
+	uint64_t core_id;
+	asm volatile("mov x14, %0\n\t" : : "r"(base_address));
+	core_id = get_smp_processor_id();
+	asm volatile("mov %0, x14\n\t" : "=r"(base_address));
+	base_address = base_address + core_id * S_VISOR_MAX_SIZE_PER_CORE;;
+	base_address = kern_hyp_va(base_address);
+	return (void*)base_address;
+}
+
 
 DEFINE_PER_CPU(kvm_cpu_context_t, kvm_host_cpu_state);
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
