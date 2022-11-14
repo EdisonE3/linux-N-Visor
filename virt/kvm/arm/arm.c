@@ -904,25 +904,25 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			ret = kvm_vcpu_run_vhe(vcpu);
 			kvm_arm_vhe_guest_exit();
 		} else {
-			printk("KVM_RUN_NVHE_CPU");
+			// printk("KVM_RUN_NVHE_CPU");
 			
 			// get shared memory
 			void* gp_regs = get_gp_reg_region(smp_processor_id());
-			printk("smp_processor_id core_id: %lu\n", smp_processor_id());
-			printk("get gp_regs: %llx\n", kern_hyp_va(gp_regs));
+			// printk("smp_processor_id core_id: %lu\n", smp_processor_id());
+			// printk("get gp_regs: %llx\n", kern_hyp_va(gp_regs));
 
 			// set the smc parameters
 			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
 			
-			// save base_address to x18
+			// save base_address to x14
 			void *base_address = get_s_visor_shared_base_address();
-			uint64_t x14_value = base_address;	
-			asm volatile("mov x14,  %0" : : "r" (x14_value));
+			// uint64_t x14_value = base_address;	
+			// asm volatile("mov x14,  %0" : : "r" (x14_value));
 
-			unsigned int tmp_core_id = kvm_call_hyp(get_core_id);
-			void* tmp_gp_regs = kvm_call_hyp(get_s_visor_shared_buf_by_base);
-			printk("get core id: tmp_core_id: %lu\n", tmp_core_id);
-			printk("get s visor shared buf by base: %llx\n", tmp_gp_regs);
+			// unsigned int tmp_core_id = kvm_call_hyp(get_core_id);
+			// void* tmp_gp_regs = kvm_call_hyp(get_s_visor_shared_buf_by_base);
+			// printk("get core id: tmp_core_id: %lu\n", tmp_core_id);
+			// printk("get s visor shared buf by base: %llx\n", tmp_gp_regs);
 
 			// go to guest 
 			asm volatile("mov x14,  %0" : : "r" (x14_value));

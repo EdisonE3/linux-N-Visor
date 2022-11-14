@@ -376,28 +376,39 @@ inline static void update_s_visor_top(uint64_t top_pfn)
 
 // 在destroy_vm的时候，会调用这个函数
 int sec_mem_compact_pool(enum sec_pool_type target_type) {
+	// cma pool 用来管理内存
 	struct cma_pool *target_pool;
+	// used_head: 已经分配的cache，free_head: 空闲的cache
 	struct list_head *used_head, *free_head;
+	// src_cache: 现在正在使用的cache，dst_cache: 通常是没有被使用的cache
 	struct sec_mem_cache *src_cache, *dst_cache;
 
+	// 根据类型，找到对应的pool
 	target_pool = &global_sma.pools[target_type];
 
 	mutex_lock(&target_pool->pool_lock);
 	/* Prepare migrate src (largest PFN) to dst (smallest PFN) */
+	
+	// 从target_pool中找到used_cache_list和free_cache_list
 	used_head = &target_pool->used_cache_list;
 	free_head = &target_pool->free_cache_list;
+	// 对list进行排序，按照base_pfn的大小排序
 	list_sort(NULL, used_head, sec_mem_cache_cmp);
 	list_sort(NULL, free_head, sec_mem_cache_cmp);
 
+	// 只要used和free中有一个不为空，就一直循环
 	while (!list_empty(free_head) && !list_empty(used_head)) {
 		struct list_head src_page_list;
 		unsigned long pfn_it;
 		int ret;
 		bool release_res;
 
+		// 取出used_head中的最后一个cache
 		src_cache = list_last_entry(used_head, struct sec_mem_cache, node_for_pool);
+		// 取出free_head中的第一个cache
 		dst_cache = list_first_entry(free_head, struct sec_mem_cache, node_for_pool);
 		/* If used_pfn < free_pfn, no need to migrate, release the free caches */
+		// 这里做migrate的目的是把cache集中化，方便获取连续内存
 		if (src_cache->base_pfn < dst_cache->base_pfn)
 			break;
 		/*
@@ -408,6 +419,7 @@ int sec_mem_compact_pool(enum sec_pool_type target_type) {
 		list_del(&dst_cache->node_for_pool);
 		target_pool->nr_free_cache--;
 
+		// 生成一个list，用来储存需要迁移的src_page
 		INIT_LIST_HEAD(&src_page_list);
 		for (pfn_it = src_cache->base_pfn;
 				pfn_it < (src_cache->base_pfn + SMA_CACHE_PAGES); pfn_it++) {
@@ -419,16 +431,22 @@ int sec_mem_compact_pool(enum sec_pool_type target_type) {
 			if (page->is_sec_mem && page_count(page) != 1)
 				list_add_tail(&page->lru, &src_page_list);
 		}
+
+		// 把used_list last cache (src_page_list) 移动到 free_list first cache (dst_cache)
 		ret = migrate_sma_pages(&src_page_list,
 				sec_mem_get_migrate_dst, sec_mem_migrate_failure_callback,
 				(unsigned long)dst_cache, MIGRATE_SYNC, MR_COMPACTION);
+		
 		if (ret != 0)
 			pr_err("%s:\t migrate_pages ret = %d (nr_pages not migrated/error code)\n",
 					__func__, ret);
+		
+		// 释放src_cache
 		for (pfn_it = src_cache->base_pfn;
 				pfn_it < (src_cache->base_pfn + SMA_CACHE_PAGES); pfn_it++) {
 			struct page *page = pfn_to_page(pfn_it);
 			reset_page_states(page);
+			// free page
 			put_page(page);
 		}
 

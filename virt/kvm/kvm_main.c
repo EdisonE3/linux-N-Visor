@@ -1085,12 +1085,6 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		printk("boot s-visor secure vm: smc_req = %llx", smc_req);
 		printk("boot s-visor secure vm: base_address = %llx", base_address);
 		printk("boot s-visor secure vm: core_id = %llx", core_id);
-		// smc_req->sec_vm_id = kvm->arch.sec_vm_id;
-		// smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
-		// uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
-		// // printk("qemu s1ptp: %u\n", qemu_s1ptp);
-		// smc_req->boot.qemu_s1ptp = qemu_s1ptp;
-		// smc_req->boot.nr_vcpu = kvm->created_vcpus;
 
 		uint64_t x14_value = base_address;	
 		asm volatile("mov x14,  %0" : : "r" (x14_value));
