@@ -563,6 +563,7 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs, void *s
 {
 	struct kvm_cpu_context *host_ctxt;
 	struct kvm_cpu_context *guest_ctxt;
+	void *share_buf_address;
 	u64 exit_code;
 
 	vcpu = kern_hyp_va(vcpu);
@@ -571,8 +572,6 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs, void *s
 	host_ctxt = kern_hyp_va(vcpu->arch.host_cpu_context);
 	host_ctxt->__hyp_running_vcpu = vcpu;
 	guest_ctxt = &vcpu->arch.ctxt;
-
-	// asm volatile("smc 0x18\n\t");
 
 	__sysreg_save_state_nvhe(host_ctxt);
 	__debug_save_host_buffers_nvhe(vcpu);
@@ -597,6 +596,10 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs, void *s
 		/* Jump in the fire! */
 		exit_code = __guest_enter_s_visor_fastpath(vcpu, host_ctxt, gp_regs);
 
+		// resotre vcpu regs from share buffer
+		share_buf_address = get_shared_buf_with_rmm(share_buf_base_address);
+		// TODO: 后面改成从buf里读数据，现在是把vcpu写入buf.
+		__retrieve_shared_buf_to_vcpu(vcpu, share_buf_address);
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));
 
