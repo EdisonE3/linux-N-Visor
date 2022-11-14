@@ -929,6 +929,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			ret = kvm_vcpu_run_vhe(vcpu);
 			kvm_arm_vhe_guest_exit();
 		} else {
+			printk("kvm_run_nvhe: start\n");
+
 			// set the smc parameters
 			trap_s_visor_enter_guest(vcpu->kvm->arch.sec_vm_id, vcpu->vcpu_id);
 			
@@ -937,6 +939,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 			void *base_address = get_s_visor_shared_base_address();
 		
 			ret = kvm_call_hyp(__kvm_vcpu_run_nvhe, vcpu, gp_regs, base_address);
+		
+			printk("kvm_run_nvhe: end\n");
 		}
 
 		vcpu->mode = OUTSIDE_GUEST_MODE;
