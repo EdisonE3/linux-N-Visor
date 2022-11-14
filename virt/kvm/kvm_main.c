@@ -973,33 +973,33 @@ EXPORT_SYMBOL(vm_kernel_gpa);
 extern void boot_s_visor_secure_vm(int, int);
 static atomic_t sec_vm_cnt = ATOMIC_INIT(0);
 
-/* trap to secure world */
-void* __hyp_text __boot_s_visor_secure_vm_nvhe(unsigned int core_id, void *base_address, u32 sec_vm_id, u64 nr_vcpu){
-	kvm_smc_req_t *smc_req = get_smc_req_region_by_base(core_id, base_address);
-	
-	void *r_void = smc_req;
-	// kvm_smc_req_t * smc_req = (kvm_smc_req_t *)smc_req_t;
-	
-	smc_req = kern_hyp_va(smc_req);
-	smc_req->sec_vm_id = sec_vm_id;
-	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
-	uint64_t qemu_s1ptp = __read_ttbr0_el2();
-	smc_req->boot.qemu_s1ptp = qemu_s1ptp;
-	smc_req->boot.nr_vcpu = nr_vcpu;
-
-	local_irq_disable();
-	asm volatile("smc 0x18\n\t");
-	local_irq_enable();
-
-	return r_void;
-}
-
 /* read value of ttbr0_el2 */
 uint64_t __hyp_text __read_ttbr0_el2(void){
 	uint64_t qemu_s1ptp;		
 	asm volatile("mrs %0, ttbr0_el2\n\t" : "=r"(qemu_s1ptp));
 	
 	return qemu_s1ptp;
+}
+
+extern void boot_rmm_realm_vm(u32 sec_vm_id, u64 nr_vcpu);
+/* trap to secure world and initialize corresponding vm in realm world */
+void boot_rmm_realm_vm(u32 sec_vm_id, u64 nr_vcpu){
+	// request shared memory
+	unsigned int core_id;
+	kvm_smc_req_t *smc_req;
+	core_id = smp_processor_id();
+	smc_req = get_smc_req_region(core_id);
+
+	// initialize information of smc_req
+	smc_req->sec_vm_id = sec_vm_id;
+	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+	uint64_t qemu_s1ptp = kvm_call_hyp(__read_ttbr0_el2);
+	smc_req->boot.qemu_s1ptp = qemu_s1ptp;
+	smc_req->boot.nr_vcpu = nr_vcpu;
+
+	local_irq_disable();
+	asm volatile("smc 0x18\n\t");
+	local_irq_enable();
 }
 
 /*
@@ -1080,18 +1080,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		unsigned int core_id = smp_processor_id();
 		void *base_address = get_s_visor_shared_base_address();
 
-		kvm_smc_req_t *smc_req = get_smc_req_region(core_id);
-
-		printk("boot s-visor secure vm: smc_req = %llx", smc_req);
-		printk("boot s-visor secure vm: base_address = %llx", base_address);
-		printk("boot s-visor secure vm: core_id = %llx", core_id);
-
-		uint64_t x14_value = base_address;	
-		asm volatile("mov x14,  %0" : : "r" (x14_value));
-
-		void *r_void = kvm_call_hyp(__boot_s_visor_secure_vm_nvhe, core_id, base_address,
-			     kvm->arch.sec_vm_id, kvm->created_vcpus);
-		printk("boot s-visor secure vm: r_void = %llx", r_void);
+		boot_rmm_realm_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
 	}
 
 	new = old = *slot;
