@@ -598,7 +598,6 @@ int __hyp_text __kvm_vcpu_run_nvhe(struct kvm_vcpu *vcpu, void *gp_regs, void *s
 
 		// resotre vcpu regs from share buffer
 		share_buf_address = get_shared_buf_with_rmm(share_buf_base_address);
-		// TODO: 后面改成从buf里读数据，现在是把vcpu写入buf.
 		__retrieve_shared_buf_to_vcpu(vcpu, share_buf_address);
 		/* And we're baaack! */
 	} while (fixup_guest_exit(vcpu, &exit_code));
