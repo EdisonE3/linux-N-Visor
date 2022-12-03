@@ -44,8 +44,51 @@ enum {
 	REQ_KVM_TO_S_VISOR_SHUTDOWN,
 	REQ_KVM_TO_S_VISOR_GENERAL,
 	REQ_KVM_TO_S_VISOR_MEMCPY,
-	REQ_KVM_TO_S_VISOR_UPDATE_TOP
+	REQ_KVM_TO_S_VISOR_UPDATE_TOP,
+
+	// rmi between kvm and rmm
+	SMC_RMM_VERSION,
+    SMC_RMM_FEATURES,
+    SMC_RMM_GRANULE_DELEGATE,
+    SMC_RMM_GRANULE_UNDELEGATE,
+    SMC_RMM_REALM_CREATE,
+    SMC_RMM_REALM_DESTROY,
+    SMC_RMM_REALM_ACTIVATE,
+    SMC_RMM_REC_CREATE,
+    SMC_RMM_REC_DESTROY,
+    SMC_RMM_REC_ENTER,
+    SMC_RMM_DATA_CREATE,
+    SMC_RMM_DATA_CREATE_UNKNOWN,
+    SMC_RMM_DATA_DESTROY,
+    SMC_RMM_RTT_CREATE,
+    SMC_RMM_RTT_FOLD,
+    SMC_RMM_RTT_MAP_UNPROTECTED,
+    SMC_RMM_RTT_UNMAP_UNPROTECTED,
+    SMC_RMM_RTT_READ_ENTRY,
+    SMC_RMM_PSCI_COMPLETE,
+    SMC_RMM_REC_AUX_COUNT,
+    SMC_RMM_RTT_INIT_RIPAS,
+    SMC_RMM_RTT_SET_RIPAS
 };
+
+/* The following are the rmi APIs */
+u64 rmi_version(void);
+u64 rmi_granule_delegate(u64 addr);
+u64 rmi_granule_undelegate(u64 addr);
+
+u64 rmi_data_create(bool unknown, u64 data, u64 rd, u64 map_addr, u64 src);
+u64 rmi_data_destroy(u64 rd, u64 map_addr);
+
+u64 rmi_realm_create(u64 rd, u64 params_ptr);
+u64 rmi_realm_destroy(u64 rd);
+u64 rmi_realm_activate(u64 rd);
+
+u64 rmi_rec_create(u64 rec, u64 rd, u64 params_ptr);
+u64 rmi_rec_destroy(u64 rec);
+
+u64 rmi_rtt_create(u64 rtt, u64 rd, u64 map_addr, u64 level);
+u64 rmi_rtt_destroy(u64 rtt, u64 rd, u64 map_addr, u64 level);
+/* The above are the rmi APIs */
 
 /* NOTE: KVM_SMC_UNMAP_IPA uses variable length of shared memory */
 typedef struct {
