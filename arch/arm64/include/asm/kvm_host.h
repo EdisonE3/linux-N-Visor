@@ -36,6 +36,55 @@
 #define SMC_IMM_KVM_TO_S_VISOR_SHARED_MEMORY_REGISTER 0x10
 #define SMC_IMM_KVM_TO_S_VISOR_SHARED_MEMORY_HANDLE 0x18
 
+#define REALM_SUCCESS			0U
+#define REALM_ERROR			1U
+#define REALM_MAX_LOAD_IMG_SIZE 0x100000U
+
+/* Maximum number of auxiliary granules required for a REC */
+#define MAX_REC_AUX_GRANULES		16U
+#define REC_PARAMS_AUX_GRANULES		16U
+
+typedef enum {
+	/*
+	 * Command completed successfully.
+	 *
+	 * index is zero.
+	 */
+	RMI_SUCCESS = 0,
+	/*
+	 * The value of a command input value caused the command to fail.
+	 *
+	 * index is zero.
+	 */
+	RMI_ERROR_INPUT = 1,
+	/*
+	 * An attribute of a Realm does not match the expected value.
+	 *
+	 * index varies between usages.
+	 */
+	RMI_ERROR_REALM = 2,
+	/*
+	 * An attribute of a REC does not match the expected value.
+	 *
+	 * index is zero.
+	 */
+	RMI_ERROR_REC = 3,
+	/*
+	 * An RTT walk terminated before reaching the target RTT level,
+	 * or reached an RTTE with an unexpected value.
+	 *
+	 * index: RTT level at which the walk terminated
+	 */
+	RMI_ERROR_RTT = 4,
+	/*
+	 * An operation cannot be completed because a resource is in use.
+	 *
+	 * index is zero.
+	 */
+	RMI_ERROR_IN_USE = 5,
+	RMI_ERROR_COUNT
+} status_t;
+
 enum {
 	REQ_KVM_TO_S_VISOR_FLUSH_IPA = 0,
 	REQ_KVM_TO_S_VISOR_UNMAP_IPA,
@@ -72,6 +121,7 @@ enum {
 };
 
 /* The following are the rmi APIs */
+u64 rmi_features(void);
 u64 rmi_version(void);
 u64 rmi_granule_delegate(u64 addr);
 u64 rmi_granule_undelegate(u64 addr);
@@ -90,8 +140,26 @@ u64 rmi_rtt_create(u64 rtt, u64 rd, u64 map_addr, u64 level);
 u64 rmi_rtt_destroy(u64 rtt, u64 rd, u64 map_addr, u64 level);
 /* The above are the rmi APIs */
 
-typedef struct {
+enum realm_state {
+	REALM_STATE_NULL,
+	REALM_STATE_NEW,
+	REALM_STATE_ACTIVE,
+	REALM_STATE_SYSTEM_OFF
+};
 
+typedef struct {
+	u64 par_base;
+	u64 par_size;
+	u64 rd;
+	u64 rtt_addr;
+	u64 rec;
+	u64 run;
+	u64 num_aux;
+	u64 rmm_feat_reg0;
+	u64 ipa_ns_buffer;
+	u64 ns_buffer_size;
+	u64 aux_pages[REC_PARAMS_AUX_GRANULES];
+	enum realm_state state;
 } realm;
 
 /* The following are encapsulated APIs of RMIs for realm management */

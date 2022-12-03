@@ -995,12 +995,44 @@ void boot_rmm_realm_vm(u32 sec_vm_id, u64 nr_vcpu){
 	local_irq_enable();
 }
 
-extern bool kvm_create_realm_payload(u64 xxx);
-bool kvm_create_realm_payload(u64 xxx){
+extern bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr);
+bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	bool ret;
-	if (xxx > 1000){
-		ret = true;
+	realm realm;
+
+	// TODO: check the range of realm_payload_address
+
+	// TODO: initialize Host NS heap memory to be used in Realm creation
+
+	// TODO: mmap the realm_payload_address to Host NS heap memory
+
+	// TODO: query whether the realm feauture is enable
+	if(rmi_features() != REALM_SUCCESS){
+		kvm_info("rmi_features() failed\n");
+		goto destroy_realm;
 	}
+
+	// TODO: create realm
+	if (realm_create(&realm) != REALM_SUCCESS) {
+		kvm_info("realm_create() failed\n");
+		goto destroy_realm;
+	}
+
+	// TODO: init ipa state
+
+	// TODO: RTT map the Realm Image
+
+	// TODO: create rec
+
+	// TODO: activate realm
+
+	ret = true;
+	return ret;
+
+destroy_realm:
+	// TODO: destroy realm
+
+	ret = false;
 	return ret;
 }
 
