@@ -14,7 +14,7 @@ obj-$(CONFIG_KVM_ARM_HOST) += hyp/
 
 kvm-$(CONFIG_KVM_ARM_HOST) += $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o $(KVM)/eventfd.o $(KVM)/vfio.o
 kvm-$(CONFIG_KVM_ARM_HOST) += $(KVM)/arm/arm.o $(KVM)/arm/mmu.o $(KVM)/arm/mmio.o
-kvm-$(CONFIG_KVM_ARM_HOST) += $(KVM)/arm/rmm_rmi.o
+kvm-$(CONFIG_KVM_ARM_HOST) += $(KVM)/arm/rmm_realm_rmi.o
 kvm-$(CONFIG_KVM_ARM_HOST) += $(KVM)/arm/psci.o $(KVM)/arm/perf.o
 
 kvm-$(CONFIG_KVM_ARM_HOST) += inject_fault.o regmap.o va_layout.o

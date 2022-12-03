@@ -90,6 +90,26 @@ u64 rmi_rtt_create(u64 rtt, u64 rd, u64 map_addr, u64 level);
 u64 rmi_rtt_destroy(u64 rtt, u64 rd, u64 map_addr, u64 level);
 /* The above are the rmi APIs */
 
+typedef struct {
+
+} realm;
+
+/* The following are encapsulated APIs of RMIs for realm management */
+u64 realm_map_protected_data_unknown(realm *realm, u64 target_pa,
+				     u64 map_size);
+u64 realm_create(realm *realm);
+u64 realm_map_payload_image(realm *realm, u64 realm_payload_adr);
+u64 realm_map_ns_shared(realm *realm, u64 ns_shared_mem_adr,
+			u64 ns_shared_mem_size);
+u64 realm_rec_create(realm *realm);
+u64 realm_activate(realm *realm);
+u64 realm_destroy(realm *realm);
+u64 realm_rec_enter(realm *realm, u64 *exit_reason,
+		    unsigned int *test_result);
+u64 realm_init_ipa_state(realm *realm, u64 level, u64 start,
+			 uint64_t end);
+/* The above are encapsulated APIs of RMIs for realm management  */
+
 /* NOTE: KVM_SMC_UNMAP_IPA uses variable length of shared memory */
 typedef struct {
 	uint32_t sec_vm_id;

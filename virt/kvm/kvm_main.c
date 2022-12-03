@@ -995,6 +995,15 @@ void boot_rmm_realm_vm(u32 sec_vm_id, u64 nr_vcpu){
 	local_irq_enable();
 }
 
+extern bool kvm_create_realm_payload(u64 xxx);
+bool kvm_create_realm_payload(u64 xxx){
+	bool ret;
+	if (xxx > 1000){
+		ret = true;
+	}
+	return ret;
+}
+
 /*
  * Allocate some memory and give it an address in the guest physical address
  * space.
