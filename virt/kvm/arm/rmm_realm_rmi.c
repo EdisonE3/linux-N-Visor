@@ -1,7 +1,7 @@
 #include <linux/kvm_host.h>
 
-#define R_PAGE_SHIFT	12
-#define R_PAGE_SIZE	1 << R_PAGE_SHIFT
+#define R_PAGE_SHIFT	12U
+#define R_PAGE_SIZE	1U << R_PAGE_SHIFT
 
 // The following are RMI implementation
 
@@ -14,37 +14,155 @@ u64 rmi_features(){
 }
 
 u64 rmi_granule_delegate(u64 addr){
+    kvm_info("RMI GRANULE DELEGATE: %lx\n", addr);
+    // TODO: implement granule delegate smc
+
     return REALM_SUCCESS;
 }
+
+u64 rmi_granule_undelegate(u64 addr){
+    kvm_info("RMI GRANULE UNDELEGATE: %lx\n", addr);
+    // TODO: implement granule delegate smc
+
+    return REALM_SUCCESS;
+}
+
+u64 rmi_realm_create(u64 rd, u64 params_ptr){
+    kvm_info("RMI REALM CREATE: rd: %lx, params_ptr: %lx\n", rd, params_ptr);
+    // TODO: implement realm create smc
+
+    return REALM_SUCCESS;
+}
+
+u64 rmi_realm_destroy(u64 rd){
+    kvm_info("RMI REALM DESTROY: rd: %lx\n", rd);
+    // TODO: implement realm destroy smc
+
+    return REALM_SUCCESS;
+}
+
+u64 rmi_rec_aux_count(u64 rd, u64 *aux_count){
+    kvm_info("RMI REC AUX COUNT: rd: %lx aux_count: %lx\n", rd, aux_count);
+    // TODO: implement rec aux count smc
+
+    return REALM_SUCCESS;
+}
+
+//----------------------------------------------------------------------------------
 
 // The following are realm management implementation
 
 u64 realm_create(realm *realm){
+    rmi_realm_params *params;
     u64 ret;
 
-    // TODO: change the state of realm to REALM_STATE_NULL
+    // change the state of realm to REALM_STATE_NULL
 	realm->state = REALM_STATE_NULL;
 
-    // TODO: set the range of reserved memory for realm image
+    // set the range of reserved memory for realm image
     realm->par_size = REALM_MAX_LOAD_IMG_SIZE;
 
-    // TODO: allocate reserved memory for realm image
+    // allocate reserved memory for realm image
+    realm->par_base = (u64)kmalloc(realm->par_size, GFP_KERNEL);
+    if (realm->par_base == NULL){
+        kvm_info("page_alloc failed, base=0x%lx, size=0x%lx\n",
+			  realm->par_base, realm->par_size);
+        return REALM_ERROR;
+    }
 
-    // TODO: allocate and delegate granule for rd (realm descriptor)
+    // allocate and delegate granule for rd (realm descriptor)
+    realm->rd = (u64)kmalloc(R_PAGE_SIZE, GFP_KERNEL);
+    if (realm->rd == NULL) {
+		kvm_info("Failed to allocate memory for rd\n");
+		goto err_free_par;
+	} else {
+		ret = rmi_granule_delegate(realm->rd);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("rd delegation failed, rd=0x%lx, ret=0x%lx\n",
+					realm->rd, ret);
+			goto err_free_rd;
+		}
+	}
 
-    // TODO: allocate and delegate granule for rtt (realm translation table)
+    // allocate and delegate granule for rtt (realm translation table)
+    realm->rtt_addr = (u64)kmalloc(R_PAGE_SIZE, GFP_KERNEL);
+	if (realm->rtt_addr == NULL) {
+		kvm_info("Failed to allocate memory for rtt_addr\n");
+		goto err_undelegate_rd;
+	} else {
+		ret = rmi_granule_delegate(realm->rtt_addr);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("rtt delegation failed, rtt_addr=0x%lx, ret=0x%lx\n",
+					realm->rtt_addr, ret);
+			goto err_free_rtt;
+		}
+	}
 
     // TODO: allocate memory for parameters
+    params = (rmi_realm_params*)kmalloc(R_PAGE_SIZE, GFP_KERNEL);
+    if (params == NULL) {
+		kvm_info("Failed to allocate memory for params\n");
+		goto err_undelegate_rtt;
+	}
 
-    // TODO: fill up parameters
+    // fill up parameters
+	params->features_0 = realm->rmm_feat_reg0;
+	params->rtt_level_start = 0L;
+	params->rtt_num_start = 1U;
+	params->rtt_base = realm->rtt_addr;
+    // TODO: replace it with a variable
+	params->vmid = 1U;
+	params->hash_algo = RMI_HASH_SHA_256;
 
-    // TODO: create realm using rmi_realm_create, requiring rd and parameters
+    // create realm using RMI, requiring rd and parameters
+    ret = rmi_realm_create(realm->rd, (u64)params);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("Realm create failed, rd=0x%lx, ret=0x%lx\n",
+			 realm->rd, ret);
+		goto err_free_params;
+	}
 
-    // TODO: deal with realm aux
+    // deal with realm aux
+    ret = rmi_rec_aux_count(realm->rd, &realm->num_aux);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("rmi_rec_aux_count failed, rd=0x%lx, ret=0x%lx\n",
+			 realm->rd, ret);
+		rmi_realm_destroy(realm->rd);
+		goto err_free_params;
+	}
 
-    // TODO: change the state of realm to REALM_STATE_NEW
+    // change the state of realm to REALM_STATE_NEW
+    realm->state = REALM_STATE_NEW;
 
-    // TODO: free unuse var parameter
-
+    // free unuse var parameter
+    kfree((u64)params);
     return REALM_SUCCESS;
+
+err_free_params:
+	kfree((u64)params);
+
+err_undelegate_rtt:
+	ret = rmi_granule_undelegate(realm->rtt_addr);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("rtt undelegation failed, rtt_addr=0x%lx, ret=0x%lx\n",
+		realm->rtt_addr, ret);
+	}
+
+err_free_rtt:
+	kfree(realm->rtt_addr);
+
+err_undelegate_rd:
+	ret = rmi_granule_undelegate(realm->rd);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("rd undelegation failed, rd=0x%lx, ret=0x%lx\n", 
+        realm->rd, ret);
+	}
+
+err_free_rd:
+	kfree(realm->rd);
+
+err_free_par:
+	kfree(realm->par_base);
+
+    return REALM_ERROR;
 }

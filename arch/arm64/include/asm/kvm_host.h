@@ -43,6 +43,25 @@
 /* Maximum number of auxiliary granules required for a REC */
 #define MAX_REC_AUX_GRANULES		16U
 #define REC_PARAMS_AUX_GRANULES		16U
+#define REC_EXIT_NR_GPRS		31U
+
+/* Size of Realm Personalization Value */
+#define RPV_SIZE			64U
+
+/* RmiRealmMeasurementAlgorithm types */
+#define RMI_HASH_SHA_256		0U
+#define RMI_HASH_SHA_512		1U
+
+/*
+ * Defines member of structure and reserves space
+ * for the next member with specified offset.
+ */
+#define SET_MEMBER(member, start, end)	\
+	union {				\
+		member;			\
+		unsigned char reserved##end[end - start]; \
+	}
+
 
 typedef enum {
 	/*
@@ -138,6 +157,8 @@ u64 rmi_rec_destroy(u64 rec);
 
 u64 rmi_rtt_create(u64 rtt, u64 rd, u64 map_addr, u64 level);
 u64 rmi_rtt_destroy(u64 rtt, u64 rd, u64 map_addr, u64 level);
+
+u64 rmi_rec_aux_count(u64 rd, u64 *aux_count);
 /* The above are the rmi APIs */
 
 enum realm_state {
@@ -161,6 +182,25 @@ typedef struct {
 	u64 aux_pages[REC_PARAMS_AUX_GRANULES];
 	enum realm_state state;
 } realm;
+
+typedef struct {
+	/* Realm feature register 0 */
+	SET_MEMBER(u64 features_0, 0, 0x100);		/* Offset 0 */
+	/* Measurement algorithm */
+	SET_MEMBER(unsigned char hash_algo, 0x100, 0x400);	/* 0x100 */
+	/* Realm Personalization Value */
+	SET_MEMBER(unsigned char rpv[RPV_SIZE], 0x400, 0x800);	/* 0x400 */
+	SET_MEMBER(struct {
+		/* Virtual Machine Identifier */
+		unsigned short vmid;				/* 0x800 */
+		/* Realm Translation Table base */
+		u64 rtt_base;				/* 0x808 */
+		/* RTT starting level */
+		long rtt_level_start;				/* 0x810 */
+		/* Number of starting level RTTs */
+		unsigned int rtt_num_start;			/* 0x818 */
+	}, 0x800, 0x1000);
+} rmi_realm_params;
 
 /* The following are encapsulated APIs of RMIs for realm management */
 u64 realm_map_protected_data_unknown(realm *realm, u64 target_pa,
