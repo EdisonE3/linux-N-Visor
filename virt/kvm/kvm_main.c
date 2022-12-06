@@ -998,7 +998,9 @@ void boot_rmm_realm_vm(u32 sec_vm_id, u64 nr_vcpu){
 extern bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr);
 bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	bool ret;
-	realm realm;
+	realm *realm_vm;
+
+	realm_vm = kmalloc(sizeof(realm), GFP_KERNEL);
 
 	// TODO: check the range of realm_payload_address
 
@@ -1013,7 +1015,7 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	}
 
 	// TODO: create realm
-	if (realm_create(&realm) != REALM_SUCCESS) {
+	if (realm_create(realm_vm) != REALM_SUCCESS) {
 		kvm_info("realm_create() failed\n");
 		goto destroy_realm;
 	}
@@ -1111,6 +1113,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		kvm->arch.sec_vm_id = atomic_inc_return(&sec_vm_cnt) + 1;
 
 		boot_rmm_realm_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
+		kvm_create_realm_payload(kvm, 1000U);
 	}
 
 	new = old = *slot;
