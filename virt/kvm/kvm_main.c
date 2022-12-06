@@ -1000,21 +1000,20 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	bool ret;
 	realm *realm_vm;
 
-	realm_vm = kmalloc(sizeof(realm), GFP_KERNEL);
-
 	// TODO: check the range of realm_payload_address
 
-	// TODO: initialize Host NS heap memory to be used in Realm creation
+	// TODO: [STOP] initialize Host NS heap memory to be used in Realm creation
 
-	// TODO: mmap the realm_payload_address to Host NS heap memory
+	// TODO: [STOP] mmap the realm_payload_address to Host NS heap memory
 
-	// TODO: query whether the realm feauture is enable
+	// TODO: [STOP]
 	if(rmi_features() != REALM_SUCCESS){
 		kvm_info("rmi_features() failed\n");
 		goto destroy_realm;
 	}
 
 	// TODO: create realm
+	realm_vm = kmalloc(sizeof(realm), GFP_KERNEL);
 	if (realm_create(realm_vm) != REALM_SUCCESS) {
 		kvm_info("realm_create() failed\n");
 		goto destroy_realm;

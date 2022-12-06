@@ -1,7 +1,12 @@
 #include <linux/kvm_host.h>
 
+#include <asm/kvm_mmu.h>
+#include <asm/memory.h>
+
 #define R_PAGE_SHIFT	12U
 #define R_PAGE_SIZE	1U << R_PAGE_SHIFT
+
+//----------------------------------------------------------------------------------
 
 // The following are RMI implementation
 
@@ -9,40 +14,57 @@ u64 rmi_version(){
     return REALM_SUCCESS;
 }
 
+// TODO: no need to implement now QvQ
 u64 rmi_features(){
+	kvm_info("RMI QUERY FEATURES\n");
+	// TODO: registers can be used to pass parameters
+	// asm volatile("mov x1, %0\n\t" : : "r"(1000));
+    // asm volatile("smc #0x18\n");
     return REALM_SUCCESS;
 }
 
 u64 rmi_granule_delegate(u64 addr){
-    kvm_info("RMI GRANULE DELEGATE: %lx\n", addr);
+	u64 addr_pa = virt_to_phys(addr);
+    kvm_info("RMI GRANULE DELEGATE: addr: %lx\n", addr);
+	kvm_info("RMI GRANULE DELEGATE: addr_pa: %lx\n", addr_pa);
     // TODO: implement granule delegate smc
 
     return REALM_SUCCESS;
 }
 
 u64 rmi_granule_undelegate(u64 addr){
-    kvm_info("RMI GRANULE UNDELEGATE: %lx\n", addr);
+	u64 addr_pa = virt_to_phys(addr);
+    kvm_info("RMI GRANULE UNDELEGATE: addr: %lx\n", addr);
+	kvm_info("RMI GRANULE UNDELEGATE: addr_pa: %lx\n", addr_pa);
     // TODO: implement granule delegate smc
 
     return REALM_SUCCESS;
 }
 
 u64 rmi_realm_create(u64 rd, u64 params_ptr){
+	u64 rd_pa = virt_to_phys(rd);
+	u64 params_pa = virt_to_phys(params_ptr);
     kvm_info("RMI REALM CREATE: rd: %lx, params_ptr: %lx\n", rd, params_ptr);
+	kvm_info("RMI REALM CREATE: rd_pa: %lx, params_pa: %lx\n", rd_pa, params_pa);
     // TODO: implement realm create smc
 
     return REALM_SUCCESS;
 }
 
 u64 rmi_realm_destroy(u64 rd){
+	u64 rd_pa = virt_to_phys(rd);
     kvm_info("RMI REALM DESTROY: rd: %lx\n", rd);
+	kvm_info("RMI REALM DESTROY: rd_pa: %lx\n", rd_pa);
     // TODO: implement realm destroy smc
 
     return REALM_SUCCESS;
 }
 
 u64 rmi_rec_aux_count(u64 rd, u64 *aux_count){
+	u64 rd_pa = virt_to_phys(rd);
+	u64 aux_count_pa = virt_to_phys(aux_count);
     kvm_info("RMI REC AUX COUNT: rd: %lx aux_count: %lx\n", rd, aux_count);
+	kvm_info("RMI REC AUX COUNT: rd_pa: %lx aux_count_pa: %lx\n", rd_pa, aux_count_pa);
     // TODO: implement rec aux count smc
 
     return REALM_SUCCESS;
