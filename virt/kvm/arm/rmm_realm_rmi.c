@@ -578,3 +578,133 @@ u64 realm_map_payload_image(realm *realm_vm, u64 realm_payload_adr){
 	kvm_info("realm_map_payload_image() success\n");
 	return REALM_SUCCESS;
 }
+
+static void realm_free_rec_aux(u_register_t *aux_pages, unsigned int num_aux)
+{
+	u_register_t ret;
+	unsigned int i;
+
+	for (i = 0U; i < num_aux; i++) {
+		ret = rmi_granule_undelegate(aux_pages[i]);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("[warn] realm_free_rec_aux undelegation failed,"
+				"index=%u, ret=0x%lx\n",
+				i, ret);
+		}
+		kfree(aux_pages[i]);
+	}
+}
+
+static u_register_t realm_alloc_rec_aux(realm *realm_vm,
+		rmi_rec_params *params)
+{
+	u_register_t ret;
+	unsigned int i;
+
+	for (i = 0; i < realm_vm->num_aux; i++) {
+		params->aux[i] = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (params->aux[i] == NULL) {
+			kvm_info("[error] Failed to allocate memory for aux rec\n");
+			goto err_free_mem;
+		}
+		ret = rmi_granule_delegate(params->aux[i]);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("[error] aux rec delegation failed at index=%d, ret=0x%lx\n",
+					i, ret);
+			goto err_free_mem;
+		}
+
+		/* We need a copy in Realm object for final destruction */
+		realm_vm->aux_pages[i] = params->aux[i];
+	}
+	return RMI_SUCCESS;
+err_free_mem:
+	realm_free_rec_aux(params->aux, i);
+	return ret;
+}
+
+u64 realm_rec_create(realm *realm_vm){
+	rmi_rec_params *rec_params = NULL;
+	u_register_t ret;
+	unsigned int i;
+
+	/* Allocate memory for run object */
+	realm_vm->run = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (realm_vm->run == NULL) {
+		kvm_info("[error] Failed to allocate memory for run\n");
+		return REALM_ERROR;
+	}
+	(void)memset((void *)realm_vm->run, 0x0, PAGE_SIZE);
+
+	/* Allocate and delegate REC */
+	realm_vm->rec = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (realm_vm->rec == NULL) {
+		kvm_info("[error] Failed to allocate memory for REC\n");
+		goto err_free_mem;
+	} else {
+		ret = rmi_granule_delegate(realm_vm->rec);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("[error] rec delegation failed, rec=0x%lx, ret=0x%lx\n",
+					realm_vm->rd, ret);
+			goto err_free_mem;
+		}
+	}
+
+	/* Allocate memory for rec_params */
+	rec_params = (rmi_rec_params *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (rec_params == NULL) {
+		kvm_info("[error]Failed to allocate memory for rec_params\n");
+		goto err_undelegate_rec;
+	}
+	(void)memset(rec_params, 0x0, PAGE_SIZE);
+
+	/* Populate rec_params */
+	
+	for (i = 0UL; i < (sizeof(rec_params->gprs) /
+			sizeof(rec_params->gprs[0]));
+			i++) {
+		rec_params->gprs[i] = 0x0UL;
+	}
+
+	/* Delegate the required number of auxiliary Granules  */
+	ret = realm_alloc_rec_aux(realm_vm, rec_params);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("[error] REC realm_alloc_rec_aux, ret=0x%lx\n", ret);
+		goto err_free_mem;
+	}
+
+	rec_params->pc = realm_vm->par_base;
+	rec_params->flags = RMI_RUNNABLE;
+	rec_params->mpidr = 0x0UL;
+	rec_params->num_aux = realm_vm->num_aux;
+
+	/* Create REC  */
+	ret = rmi_rec_create(realm_vm->rec, realm_vm->rd,
+			(u_register_t)rec_params);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("[error] REC create failed, ret=0x%lx\n", ret);
+		goto err_free_rec_aux;
+	}
+
+	/* Free rec_params */
+	kvm_info("REC create success\n");
+	kfree((u_register_t)rec_params);
+	return REALM_SUCCESS;
+
+err_free_rec_aux:
+	realm_free_rec_aux(rec_params->aux, realm_vm->num_aux);
+
+err_undelegate_rec:
+	ret = rmi_granule_undelegate(realm_vm->rec);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("[warn] rec undelegation failed, rec=0x%lx, ret=0x%lx\n",
+				realm_vm->rec, ret);
+	}
+
+err_free_mem:
+	kfree(realm_vm->run);
+	kfree(realm_vm->rec);
+	kfree((u_register_t)rec_params);
+
+	return REALM_ERROR;
+}
