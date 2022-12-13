@@ -997,7 +997,7 @@ void boot_rmm_realm_vm(u32 sec_vm_id, u64 nr_vcpu){
 
 extern bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr);
 bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
-	bool ret;
+	bool realm_payload_created;
 	realm *realm_vm;
 
 	// malloc for realm vm structure
@@ -1028,19 +1028,32 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	}
 
 	// TODO: RTT map the Realm Image
+	if (realm_map_payload_image(realm_vm, realm_payload_adr) != REALM_SUCCESS) {
+		kvm_info("realm_map_payload_image() failed\n");
+		goto destroy_realm;
+	}
 
 	// TODO: create rec
+	// if (realm_rec_create(&realm) != REALM_SUCCESS) {
+	// 	ERROR("REC create failed\n");
+	// 	goto destroy_realm;
+	// }
 
 	// TODO: activate realm
+	// if (realm_activate(&realm) != REALM_SUCCESS) {
+	// 	ERROR("Realm activate failed\n");
+	// 	goto destroy_realm;
+	// }
 
-	ret = true;
-	return ret;
+
+	realm_payload_created = true;
+	return realm_payload_created;
 
 destroy_realm:
 	// TODO: destroy realm
-
-	ret = false;
-	return ret;
+	kvm_info("realm create failed and it is destroied\n");
+	realm_payload_created = false;
+	return realm_payload_created;
 }
 
 /*

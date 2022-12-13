@@ -19,6 +19,34 @@
 #define RMI_HASH_SHA_256		0U
 #define RMI_HASH_SHA_512		1U
 
+/* RmiRecEmulatedMmio types */
+#define RMI_NOT_EMULATED_MMIO		0U
+#define RMI_EMULATED_MMIO		1U
+
+/*
+ * RmiRecExitReason represents the reason for a REC exit.
+ * This is returned to NS hosts via RMI_REC_ENTER::run_ptr.
+ */
+#define RMI_EXIT_SYNC			0U
+#define RMI_EXIT_IRQ			1U
+#define RMI_EXIT_FIQ			2U
+#define RMI_EXIT_PSCI			3U
+#define RMI_EXIT_RIPAS_CHANGE		4U
+#define RMI_EXIT_HOST_CALL		5U
+#define RMI_EXIT_SERROR			6U
+#define RMI_EXIT_INVALID		0xFFFFFU
+
+/* RmiRecRunnable types */
+#define RMI_NOT_RUNNABLE		0U
+#define RMI_RUNNABLE			1U
+
+/* RttEntryState: represents the state of an RTTE */
+#define RMI_UNASSIGNED			0U
+#define RMI_DESTROYED			1U
+#define RMI_ASSIGNED			2U
+#define RMI_TABLE			3U
+#define RMI_VALID_NS			4U
+
 /*
  * Defines member of structure and reserves space
  * for the next member with specified offset.
@@ -76,10 +104,9 @@ typedef enum {
 #define RTT_MAX_LEVEL			3U
 #define ALIGN_DOWN(x, a)		((uint64_t)(x) & ~(((uint64_t)(a)) - 1ULL))
 #define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a)-1U)) == 0U)
-#define PAGE_SHIFT			12U
 // TODO: LEVEL SHIFT HAS NOT IMPLEMENTED: origin using XLAT_ADDR_SHIFT(l)
-// cuurently, I use 0 to replace it.
-#define RTT_LEVEL_SHIFT(l)		0
+// cuurently, I use 28 to replace it.
+#define RTT_LEVEL_SHIFT(l)		30U
 #define RTT_L2_BLOCK_SIZE		(1UL << RTT_LEVEL_SHIFT(2U))
 
 #define REC_CREATE_NR_GPRS		8U
