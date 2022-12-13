@@ -880,11 +880,14 @@ void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
 
 	spin_lock(&vcpu->arch.vgic_cpu.ap_list_lock);
+	// kvm_info("[vgic] vgic_flush_lr_state: store vgic_cpu->ap_list_head information into vgic_lr\n");
 	vgic_flush_lr_state(vcpu);
 	spin_unlock(&vcpu->arch.vgic_cpu.ap_list_lock);
 
-	if (can_access_vgic_from_kernel())
+	if (can_access_vgic_from_kernel()) {
+		// kvm_info("[vgic] vgic_restore_state\n");
 		vgic_restore_state(vcpu);
+	}
 }
 
 void kvm_vgic_load(struct kvm_vcpu *vcpu)

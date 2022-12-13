@@ -205,7 +205,7 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 		val |= ICH_LR_GROUP;
 
 	val |= (u64)irq->priority << ICH_LR_PRIORITY_SHIFT;
-
+	// kvm_info("[vgic] lr: %d val: %lx\n", lr, val);
 	vcpu->arch.vgic_cpu.vgic_v3.vgic_lr[lr] = val;
 }
 
