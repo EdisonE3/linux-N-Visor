@@ -1040,10 +1040,10 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	}
 
 	// TODO: activate realm
-	// if (realm_activate(&realm) != REALM_SUCCESS) {
-	// 	ERROR("Realm activate failed\n");
-	// 	goto destroy_realm;
-	// }
+	if (realm_activate(realm_vm) != REALM_SUCCESS) {
+		ERROR("Realm activate failed\n");
+		goto destroy_realm;
+	}
 
 
 	realm_payload_created = true;

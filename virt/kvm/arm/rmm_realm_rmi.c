@@ -708,3 +708,20 @@ err_free_mem:
 
 	return REALM_ERROR;
 }
+
+u_register_t realm_activate(realm *realm_vm)
+{
+	u_register_t ret;
+
+	/* Activate Realm  */
+	ret = rmi_realm_activate(realm_vm->rd);
+	if (ret != RMI_SUCCESS) {
+		ERROR("Realm activate failed, ret=0x%lx\n", ret);
+		return REALM_ERROR;
+	}
+
+	realm_vm->state = REALM_STATE_ACTIVE;
+
+	ERROR("Realm activate success\n");
+	return REALM_SUCCESS;
+}
