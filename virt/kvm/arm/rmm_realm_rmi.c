@@ -170,7 +170,7 @@ u64 realm_create(realm *realm_vm){
     // allocate reserved memory for realm image
     realm_vm->par_base = (u64)kmalloc(realm_vm->par_size, GFP_KERNEL);
     if (realm_vm->par_base == NULL){
-        kvm_info("page_alloc failed, base=0x%lx, size=0x%lx\n",
+        kvm_info("[error]page_alloc failed, base=0x%lx, size=0x%lx\n",
 			  realm_vm->par_base, realm_vm->par_size);
         return REALM_ERROR;
     }
@@ -178,12 +178,12 @@ u64 realm_create(realm *realm_vm){
     // allocate and delegate granule for rd (realm descriptor)
     realm_vm->rd = (u64)kmalloc(PAGE_SIZE, GFP_KERNEL);
     if (realm_vm->rd == NULL) {
-		kvm_info("Failed to allocate memory for rd\n");
+		kvm_info("[error]Failed to allocate memory for rd\n");
 		goto err_free_par;
 	} else {
 		ret = rmi_granule_delegate(realm_vm->rd);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("rd delegation failed, rd=0x%lx, ret=0x%lx\n",
+			kvm_info("[error]rd delegation failed, rd=0x%lx, ret=0x%lx\n",
 					realm_vm->rd, ret);
 			goto err_free_rd;
 		}
@@ -192,12 +192,12 @@ u64 realm_create(realm *realm_vm){
     // allocate and delegate granule for rtt (realm translation table)
     realm_vm->rtt_addr = (u64)kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (realm_vm->rtt_addr == NULL) {
-		kvm_info("Failed to allocate memory for rtt_addr\n");
+		kvm_info("[error]Failed to allocate memory for rtt_addr\n");
 		goto err_undelegate_rd;
 	} else {
 		ret = rmi_granule_delegate(realm_vm->rtt_addr);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("rtt delegation failed, rtt_addr=0x%lx, ret=0x%lx\n",
+			kvm_info("[error]rtt delegation failed, rtt_addr=0x%lx, ret=0x%lx\n",
 					realm_vm->rtt_addr, ret);
 			goto err_free_rtt;
 		}
@@ -206,7 +206,7 @@ u64 realm_create(realm *realm_vm){
     // allocate memory for parameters
     params = (rmi_realm_params*)kmalloc(PAGE_SIZE, GFP_KERNEL);
     if (params == NULL) {
-		kvm_info("Failed to allocate memory for params\n");
+		kvm_info("[error]Failed to allocate memory for params\n");
 		goto err_undelegate_rtt;
 	}
 
@@ -222,7 +222,7 @@ u64 realm_create(realm *realm_vm){
     // create realm using RMI, requiring rd and parameters
     ret = rmi_realm_create(realm_vm->rd, (u64)params);
 	if (ret != RMI_SUCCESS) {
-		kvm_info("Realm create failed, rd=0x%lx, ret=0x%lx\n",
+		kvm_info("[error]Realm create failed, rd=0x%lx, ret=0x%lx\n",
 			 realm_vm->rd, ret);
 		goto err_free_params;
 	}
@@ -230,7 +230,7 @@ u64 realm_create(realm *realm_vm){
     // deal with realm aux
     ret = rmi_rec_aux_count(realm_vm->rd, &realm_vm->num_aux);
 	if (ret != RMI_SUCCESS) {
-		kvm_info("rmi_rec_aux_count failed, rd=0x%lx, ret=0x%lx\n",
+		kvm_info("[error]rmi_rec_aux_count failed, rd=0x%lx, ret=0x%lx\n",
 			 realm_vm->rd, ret);
 		rmi_realm_destroy(realm_vm->rd);
 		goto err_free_params;
@@ -250,7 +250,7 @@ err_free_params:
 err_undelegate_rtt:
 	ret = rmi_granule_undelegate(realm_vm->rtt_addr);
 	if (ret != RMI_SUCCESS) {
-		kvm_info("rtt undelegation failed, rtt_addr=0x%lx, ret=0x%lx\n",
+		kvm_info("[error]rtt undelegation failed, rtt_addr=0x%lx, ret=0x%lx\n",
 		realm_vm->rtt_addr, ret);
 	}
 
@@ -260,7 +260,7 @@ err_free_rtt:
 err_undelegate_rd:
 	ret = rmi_granule_undelegate(realm_vm->rd);
 	if (ret != RMI_SUCCESS) {
-		kvm_info("rd undelegation failed, rd=0x%lx, ret=0x%lx\n", 
+		kvm_info("[error]rd undelegation failed, rd=0x%lx, ret=0x%lx\n", 
         realm_vm->rd, ret);
 	}
 
@@ -318,19 +318,19 @@ static u_register_t rmi_create_rtt_levels(realm *realm,
 	while (level++ < max_level) {
 		rtt = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (rtt == NULL) {
-			kvm_info("Failed to allocate memory for rtt\n");
+			kvm_info("[error]Failed to allocate memory for rtt\n");
 			return REALM_ERROR;
 		} else {
 			ret = rmi_granule_delegate(rtt);
 			if (ret != RMI_SUCCESS) {
-				kvm_info("Rtt delegation failed,"
+				kvm_info("[error]Rtt delegation failed,"
 					"rtt=0x%lx ret=0x%lx\n", rtt, ret);
 				return REALM_ERROR;
 			}
 		}
 		ret = realm_rtt_create(realm, map_addr, level, rtt);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("Rtt create failed,"
+			kvm_info("[error]Rtt create failed,"
 				"rtt=0x%lx ret=0x%lx\n", rtt, ret);
 			rmi_granule_undelegate(rtt);
 			kfree(rtt);
@@ -370,20 +370,20 @@ static u_register_t realm_fold_rtt(u_register_t rd, u_register_t addr,
 
 	ret = rmi_rtt_readentry(rd, addr, level, &rtt);
 	if (ret != RMI_SUCCESS) {
-		kvm_info("Rtt readentry failed,"
+		kvm_info("[error]Rtt readentry failed,"
 			"level=0x%lx addr=0x%lx ret=0x%lx\n",
 			level, addr, ret);
 		return REALM_ERROR;
 	}
 
 	if (rtt.state != RMI_TABLE) {
-		kvm_info("Rtt readentry failed, rtt.state=0x%x\n", rtt.state);
+		kvm_info("[error]Rtt readentry failed, rtt.state=0x%x\n", rtt.state);
 		return REALM_ERROR;
 	}
 
 	ret = rmi_rtt_fold(rtt.out_addr, rd, addr, level + 1U);
 	if (ret != RMI_SUCCESS) {
-		kvm_info("Rtt destroy failed,"
+		kvm_info("[error]Rtt destroy failed,"
 			"rtt.out_addr=0x%llx addr=0x%lx ret=0x%lx\n",
 			rtt.out_addr, addr, ret);
 		return REALM_ERROR;
@@ -411,7 +411,7 @@ u64 realm_init_ipa_state(realm *realm_vm, u64 level, u64 start, uint64_t end)
 						cur_level,
 						level);
 				if (ret != RMI_SUCCESS) {
-					kvm_info("rmi_create_rtt_levels failed,"
+					kvm_info("[error]rmi_create_rtt_levels failed,"
 						"ret=0x%lx line:%d\n",
 						ret, __LINE__);
 					return ret;
@@ -462,7 +462,7 @@ static u_register_t realm_map_protected_data(bool unknown, realm *realm_vm,
 		map_level = 2UL;
 		break;
 	default:
-		kvm_info("Unknown map_size=0x%lx\n", map_size);
+		kvm_info("[error]Unknown map_size=0x%lx\n", map_size);
 		return REALM_ERROR;
 	}
 
@@ -471,14 +471,14 @@ static u_register_t realm_map_protected_data(bool unknown, realm *realm_vm,
 		ret = rmi_create_rtt_levels(realm_vm, map_addr,
 					    RMI_RETURN_INDEX(ret), map_level);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("rmi_create_rtt_levels failed,"
+			kvm_info("[error]rmi_create_rtt_levels failed,"
 			      "ret=0x%lx line:%d\n",
 			      ret, __LINE__);
 			goto err;
 		}
 		ret = rmi_rtt_init_ripas(rd, map_addr, map_level);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("rmi_create_rtt_levels failed,"
+			kvm_info("[error]rmi_create_rtt_levels failed,"
 			      "ret=0x%lx line:%d\n",
 			      ret, __LINE__);
 			goto err;
@@ -487,7 +487,7 @@ static u_register_t realm_map_protected_data(bool unknown, realm *realm_vm,
 	for (size = 0UL; size < map_size; size += PAGE_SIZE) {
 		ret = rmi_granule_delegate(phys);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("Granule delegation failed, PA=0x%lx ret=0x%lx\n",
+			kvm_info("[error]Granule delegation failed, PA=0x%lx ret=0x%lx\n",
 			      phys, ret);
 			return REALM_ERROR;
 		}
@@ -500,7 +500,7 @@ static u_register_t realm_map_protected_data(bool unknown, realm *realm_vm,
 			ret = rmi_create_rtt_levels(realm_vm, map_addr, level,
 						    map_level);
 			if (ret != RMI_SUCCESS) {
-				kvm_info("rmi_create_rtt_levels failed,"
+				kvm_info("[error]rmi_create_rtt_levels failed,"
 				      "ret=0x%lx line:%d\n",
 				      ret, __LINE__);
 				goto err;
@@ -511,7 +511,7 @@ static u_register_t realm_map_protected_data(bool unknown, realm *realm_vm,
 		}
 
 		if (ret != RMI_SUCCESS) {
-			kvm_info("rmi_data_create failed, ret=0x%lx\n", ret);
+			kvm_info("[error]rmi_data_create failed, ret=0x%lx\n", ret);
 			goto err;
 		}
 
@@ -523,13 +523,13 @@ static u_register_t realm_map_protected_data(bool unknown, realm *realm_vm,
 	if (map_size == RTT_L2_BLOCK_SIZE) {
 		ret = realm_fold_rtt(rd, target_pa, map_level);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("fold_rtt failed, ret=0x%lx\n", ret);
+			kvm_info("[error]fold_rtt failed, ret=0x%lx\n", ret);
 			goto err;
 		}
 	}
 
 	if (ret != RMI_SUCCESS) {
-		kvm_info("rmi_rtt_mapprotected failed, ret=0x%lx\n", ret);
+		kvm_info("[error]rmi_rtt_mapprotected failed, ret=0x%lx\n", ret);
 		goto err;
 	}
 
@@ -539,13 +539,13 @@ err:
 	while (size >= PAGE_SIZE) {
 		ret = rmi_data_destroy(rd, map_addr);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("rmi_rtt_mapprotected failed, ret=0x%lx\n", ret);
+			kvm_info("[error]rmi_rtt_mapprotected failed, ret=0x%lx\n", ret);
 		}
 
 		ret = rmi_granule_undelegate(phys);
 		if (ret != RMI_SUCCESS) {
 			/* Page can't be returned to NS world so is lost */
-			kvm_info("rmi_granule_undelegate failed\n");
+			kvm_info("[error][error]rmi_granule_undelegate failed\n");
 		}
 		phys -= PAGE_SIZE;
 		size -= PAGE_SIZE;
@@ -567,7 +567,7 @@ u64 realm_map_payload_image(realm *realm_vm, u64 realm_payload_adr){
 				PAGE_SIZE,
 				src_pa + i * PAGE_SIZE);
 		if (ret != RMI_SUCCESS) {
-			kvm_info("realm_map_protected_data failed,"
+			kvm_info("[error][error]realm_map_protected_data failed,"
 				"par_base=0x%lx ret=0x%lx\n",
 				realm_vm->par_base, ret);
 			return REALM_ERROR;
