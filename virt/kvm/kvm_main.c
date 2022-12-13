@@ -1015,13 +1015,17 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 		goto destroy_realm;
 	}
 
-	// TODO: create realm
+	// create realm
 	if (realm_create(realm_vm) != REALM_SUCCESS) {
 		kvm_info("realm_create() failed\n");
 		goto destroy_realm;
 	}
 
-	// TODO: init ipa state
+	// init ipa state
+	if (realm_init_ipa_state(realm_vm, 0U, 0U, 1ULL << 32) != REALM_SUCCESS) {
+		kvm_info("realm_init_ipa_state() failed\n");
+		goto destroy_realm;
+	}
 
 	// TODO: RTT map the Realm Image
 

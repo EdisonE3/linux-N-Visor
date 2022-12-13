@@ -23,7 +23,6 @@ u64 rmi_version(){
 			0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL}))).ret0;
 }
 
-// TODO: no need to implement now QvQ
 u64 rmi_features(u64 index, u64 *features){
 	kvm_info("RMI QUERY FEATURES\n");
 	smc_ret_values rets;
@@ -207,7 +206,7 @@ u64 realm_create(realm *realm_vm){
 		}
 	}
 
-    // TODO: allocate memory for parameters
+    // allocate memory for parameters
     params = (rmi_realm_params*)kmalloc(R_PAGE_SIZE, GFP_KERNEL);
     if (params == NULL) {
 		kvm_info("Failed to allocate memory for params\n");
@@ -245,6 +244,7 @@ u64 realm_create(realm *realm_vm){
 
     // free unuse var parameter
     kfree((u64)params);
+	kvm_info("realm_create() success\n");
     return REALM_SUCCESS;
 
 err_free_params:
@@ -274,4 +274,117 @@ err_free_par:
 	kfree(realm_vm->par_base);
 
     return REALM_ERROR;
+}
+
+
+static inline u_register_t rtt_level_mapsize(u_register_t level)
+{
+	kvm_info("rtt_level_mapsize: level=%lu\n", level);
+
+	if (level > RTT_MAX_LEVEL) {
+		return PAGE_SIZE;
+	}
+
+	return (1UL << RTT_LEVEL_SHIFT(level));
+}
+
+static inline u_register_t rmi_rtt_init_ripas(u_register_t rd,
+	u_register_t map_addr,
+	u_register_t level)
+{
+	kvm_info("rmi_rtt_init_ripas: rd=0x%lx, map_addr=0x%lx, level=%lu\n",
+		rd, map_addr, level);
+
+	return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_RTT_INIT_RIPAS,
+		rd, map_addr, level, 0UL, 0UL, 0UL, 0UL}))).ret0;
+}
+
+static inline u_register_t realm_rtt_create(realm *realm,
+	u_register_t addr,
+	u_register_t level,
+	u_register_t phys)
+{
+	kvm_info("realm_rtt_create: realm=0x%lx, addr=0x%lx, level=%lu, phys=%lu\n",
+		realm, addr, level, phys);
+
+	addr = ALIGN_DOWN(addr, rtt_level_mapsize(level - 1U));
+	return rmi_rtt_create(phys, realm->rd, addr, level);
+}
+
+static u_register_t rmi_create_rtt_levels(realm *realm,
+	u_register_t map_addr,
+	u_register_t level,
+	u_register_t max_level)
+{
+	u_register_t rtt, ret;
+
+	while (level++ < max_level) {
+		rtt = (u_register_t)kmalloc(R_PAGE_SIZE, GFP_KERNEL);
+		if (rtt == NULL) {
+			kvm_info("Failed to allocate memory for rtt\n");
+			return REALM_ERROR;
+		} else {
+			ret = rmi_granule_delegate(rtt);
+			if (ret != RMI_SUCCESS) {
+				kvm_info("Rtt delegation failed,"
+					"rtt=0x%lx ret=0x%lx\n", rtt, ret);
+				return REALM_ERROR;
+			}
+		}
+		ret = realm_rtt_create(realm, map_addr, level, rtt);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("Rtt create failed,"
+				"rtt=0x%lx ret=0x%lx\n", rtt, ret);
+			rmi_granule_undelegate(rtt);
+			kfree(rtt);
+			return REALM_ERROR;
+		}
+	}
+
+	kvm_info("realm_init_ipa_state() success\n");
+
+	return REALM_SUCCESS;
+}
+
+u64 realm_init_ipa_state(realm *realm_vm, u64 level, u64 start, uint64_t end)
+{
+	u_register_t rd = realm_vm->rd, ret;
+	u_register_t map_size = rtt_level_mapsize(level);
+
+	while (start < end) {
+		ret = rmi_rtt_init_ripas(rd, start, level);
+
+		if (RMI_RETURN_STATUS(ret) == RMI_ERROR_RTT) {
+			int cur_level = RMI_RETURN_INDEX(ret);
+
+			if (cur_level < level) {
+				ret = rmi_create_rtt_levels(realm_vm,
+						start,
+						cur_level,
+						level);
+				if (ret != RMI_SUCCESS) {
+					kvm_info("rmi_create_rtt_levels failed,"
+						"ret=0x%lx line:%d\n",
+						ret, __LINE__);
+					return ret;
+				}
+				/* Retry with the RTT levels in place */
+				continue;
+			}
+
+			if (level >= RTT_MAX_LEVEL) {
+				return REALM_ERROR;
+			}
+
+			/* There's an entry at a lower level, recurse */
+			realm_init_ipa_state(realm_vm, start, start + map_size,
+					     level + 1);
+		} else if (ret != RMI_SUCCESS) {
+			return REALM_ERROR;
+		}
+
+		start += map_size;
+	}
+
+	return RMI_SUCCESS;
 }

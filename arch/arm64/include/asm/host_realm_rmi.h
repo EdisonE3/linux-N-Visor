@@ -1,6 +1,8 @@
 #ifndef HOST_REALM_RMI_H
 #define HOST_REALM_RMI_H
 
+#include <asm/smc_helper.h>
+
 #define REALM_SUCCESS			0U
 #define REALM_ERROR			1U
 #define REALM_MAX_LOAD_IMG_SIZE 0x100000U
@@ -68,6 +70,17 @@ typedef enum {
 	RMI_ERROR_IN_USE = 5,
 	RMI_ERROR_COUNT
 } status_t;
+
+#define RMI_RETURN_STATUS(ret)		((ret) & 0xFF)
+#define RMI_RETURN_INDEX(ret)		(((ret) >> 8U) & 0xFF)
+#define RTT_MAX_LEVEL			3U
+#define ALIGN_DOWN(x, a)		((uint64_t)(x) & ~(((uint64_t)(a)) - 1ULL))
+#define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a)-1U)) == 0U)
+#define PAGE_SHIFT			12U
+// TODO: LEVEL SHIFT HAS NOT IMPLEMENTED: origin using XLAT_ADDR_SHIFT(l)
+// cuurently, I use 0 to replace it.
+#define RTT_LEVEL_SHIFT(l)		0
+#define RTT_L2_BLOCK_SIZE		(1UL << RTT_LEVEL_SHIFT(2U))
 
 #define REC_CREATE_NR_GPRS		8U
 #define REC_GIC_NUM_LRS			16U
@@ -256,8 +269,8 @@ u64 rmi_rec_aux_count(u64 rd, u64 *aux_count);
 
 
 /* The following are encapsulated APIs of RMIs for realm management */
-u64 realm_map_protected_data_unknown(realm *realm, u64 target_pa,u64 map_size);
 u64 realm_create(realm *realm);
+u64 realm_map_protected_data_unknown(realm *realm, u64 target_pa,u64 map_size);
 u64 realm_map_payload_image(realm *realm, u64 realm_payload_adr);
 u64 realm_map_ns_shared(realm *realm, u64 ns_shared_mem_adr,
 			u64 ns_shared_mem_size);
