@@ -995,6 +995,8 @@ void boot_rmm_realm_vm(u32 sec_vm_id, u64 nr_vcpu){
 	local_irq_enable();
 }
 
+static bool shared_mem_created;
+
 extern bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr);
 bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	bool realm_payload_created;
@@ -1009,7 +1011,7 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 
 	// TODO: [STOP] mmap the realm_payload_address to Host NS heap memory
 
-	// TODO: [STOP]
+	// qeuery realm features is supported
 	if(rmi_features(0, &((*realm_vm).rmm_feat_reg0)) != REALM_SUCCESS){
 		kvm_info("[error] rmi_features() failed\n");
 		goto destroy_realm;
@@ -1027,19 +1029,19 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 		goto destroy_realm;
 	}
 
-	// TODO: RTT map the Realm Image
+	// RTT map the Realm Image
 	if (realm_map_payload_image(realm_vm, realm_payload_adr) != REALM_SUCCESS) {
 		kvm_info("[error] realm_map_payload_image() failed\n");
 		goto destroy_realm;
 	}
 
-	// TODO: create rec
+	// create rec
 	if (realm_rec_create(realm_vm) != REALM_SUCCESS) {
 		kvm_info("[error] REC create failed\n");
 		goto destroy_realm;
 	}
 
-	// TODO: activate realm
+	// activate realm
 	if (realm_activate(realm_vm) != REALM_SUCCESS) {
 		kvm_info("[error] Realm activate failed\n");
 		goto destroy_realm;
@@ -1054,6 +1056,38 @@ destroy_realm:
 	kvm_info("[error] realm create failed and it is destroied\n");
 	realm_payload_created = false;
 	return realm_payload_created;
+}
+
+// CCA TODO:
+// extern bool host_create_shared_mem(u_register_t ns_shared_mem_adr,
+// 	u_register_t ns_shared_mem_size);
+
+// CCA TODO:
+// extern bool host_destroy_realm(void);
+
+// CCA DOING
+extern bool kvm_enter_realm_execute(uint8_t cmd);
+bool kvm_enter_realm_execute(uint8_t cmd){
+	// exit_reason = RMI_EXIT_INVALID;
+	// test_result = TEST_RESULT_FAIL;
+
+	// realm_shared_data_set_realm_cmd(cmd);
+
+	rmi_rec_entry *rec_entry;
+	rmi_rec_exit *rec_exit;
+
+	// if (!host_enter_realm(exit_reason, test_result)) {
+	// 	return false;
+	// }
+
+	// if (exit_reason == RMI_EXIT_HOST_CALL &&
+	//     test_result == TEST_RESULT_SUCCESS) {
+	// 	return true;
+	// }
+
+	// ERROR("host_enter_realm_execute exit_reason:[0x%lx],test_result:[0x%x]\n",
+	//       exit_reason, test_result);
+	return false;
 }
 
 /*
