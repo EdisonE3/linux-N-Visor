@@ -1,14 +1,13 @@
 #include <linux/kvm_host.h>
 
-#include <asm/smc_helper.h>
 #include <asm/kvm_mmu.h>
 #include <asm/memory.h>
 
 //----------------------------------------------------------------------------------
-smc_ret_values tftf_smc(const smc_args *args)
-{
-	return (smc_ret_values) {REALM_SUCCESS, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL};
-}
+// smc_ret_values tftf_smc(const smc_args *args)
+// {
+// 	return (smc_ret_values) {REALM_SUCCESS, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL};
+// }
 
 
 //----------------------------------------------------------------------------------
@@ -729,29 +728,29 @@ u_register_t realm_activate(realm *realm_vm)
 // TODO: test result may be the tftf self use it to show whether the test is successful
 u64 realm_rec_enter(realm *realm, u64 *exit_reason, unsigned int *test_result)
 {
-	rmi_rec_run *run = (struct rmi_rec_run *)realm->run;
+	rmi_rec_run *run = (rmi_rec_run *)realm->run;
 	u_register_t ret;
 	bool re_enter_rec;
 
-	do {
-		re_enter_rec = false;
-		// Enter REC
-		ret = ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_REC_ENTER,
-				realm->rec, realm->run,
-				0UL, 0UL, 0UL, 0UL, 0UL}))).ret0;
-		kvm_info("rmi_rec_enter, \
-				run->exit_reason=0x%lx, \
-				run->exit.esr=0x%llx, \
-				EC_BITS=%d, \
-				ISS_DFSC_MASK=0x%llx\n",
-				run->exit_reason,
-				run->exit.esr,
-				((EC_BITS(run->exit.esr) == EC_DABORT_CUR_EL)),
-				(ISS_BITS(run->exit.esr) & ISS_DFSC_MASK));
+	// do {
+	// 	re_enter_rec = false;
+	// 	// Enter REC
+	// 	ret = ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_REC_ENTER,
+	// 			realm->rec, realm->run,
+	// 			0UL, 0UL, 0UL, 0UL, 0UL}))).ret0;
+	// 	kvm_info("rmi_rec_enter, \
+	// 			run->exit_reason=0x%lx, \
+	// 			run->exit.esr=0x%llx, \
+	// 			EC_BITS=%d, \
+	// 			ISS_DFSC_MASK=0x%llx\n",
+	// 			run->exit_reason,
+	// 			run->exit.esr,
+	// 			((EC_BITS(run->exit.esr) == EC_DABORT_CUR_EL)),
+	// 			(ISS_BITS(run->exit.esr) & ISS_DFSC_MASK));
 
-		// TODO: deal with exit reason
+	// 	// TODO: deal with exit reason
 
-	} while (re_enter_rec);
+	// } while (re_enter_rec);
 
 	*exit_reason = run->exit.exit_reason;
 	return ret;
