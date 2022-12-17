@@ -250,6 +250,7 @@ void destroy_s_visor_secure_vm(u32 sec_vm_id)
 	smc_req->req_type = REQ_KVM_TO_S_VISOR_SHUTDOWN;
 	local_irq_disable();
 	asm volatile("smc 0x18\n\t");
+	// realm_destroy();
 	local_irq_enable();
 	ret = sec_mem_compact_pool(0);
 }

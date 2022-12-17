@@ -678,12 +678,12 @@ u64 realm_rec_create(realm *realm_vm){
 		(void)memset((void *)realm_vm->run, 0x0, PAGE_SIZE);
 
 		/* Allocate and delegate REC */
-		realm_vm->rec = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (realm_vm->rec == NULL) {
+		realm_vm->rec[i] = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (realm_vm->rec[i] == NULL) {
 			kvm_info("[error] Failed to allocate memory for REC\n");
 			goto err_free_mem;
 		} else {
-			ret = rmi_granule_delegate(realm_vm->rec);
+			ret = rmi_granule_delegate(realm_vm->rec[i]);
 			if (ret != RMI_SUCCESS) {
 				kvm_info(
 					"[error] rec delegation failed, rec=0x%lx, ret=0x%lx\n",
@@ -724,7 +724,7 @@ u64 realm_rec_create(realm *realm_vm){
 
 		/* Create REC  */
 		set_rec_params(realm_vm->vmid, i);
-		ret = rmi_rec_create(realm_vm->rec, realm_vm->rd,
+		ret = rmi_rec_create(realm_vm->rec[i], realm_vm->rd,
 				     (u_register_t)rec_params);
 		if (ret != RMI_SUCCESS) {
 			kvm_info("[error] REC create failed, ret=0x%lx\n", ret);
@@ -738,19 +738,28 @@ u64 realm_rec_create(realm *realm_vm){
 
 	return REALM_SUCCESS;
 
+unsigned int index;
+
 err_free_rec_aux:
 	realm_free_rec_aux(rec_params->aux, realm_vm->num_aux);
 
 err_undelegate_rec:
-	ret = rmi_granule_undelegate(realm_vm->rec);
-	if (ret != RMI_SUCCESS) {
-		kvm_info("[warn] rec undelegation failed, rec=0x%lx, ret=0x%lx\n",
-				realm_vm->rec, ret);
+	for (index = 0; index <= i; i++) {
+		ret = rmi_granule_undelegate(realm_vm->rec[i]);
+		if (ret != RMI_SUCCESS) {
+			kvm_info(
+				"[warn] rec undelegation failed, rec=0x%lx, ret=0x%lx\n",
+				realm_vm->rec[i], ret);
+		}
 	}
 
 err_free_mem:
 	kfree(realm_vm->run);
-	kfree(realm_vm->rec);
+	for (index = 0; index <= i; i++)
+	{
+		kfree(realm_vm->rec[i]);
+	}
+	
 	kfree((u_register_t)rec_params);
 
 	return REALM_ERROR;
@@ -802,4 +811,104 @@ u64 realm_rec_enter(realm *realm, u64 *exit_reason, unsigned int *test_result)
 
 	*exit_reason = run->exit.exit_reason;
 	return ret;
+}
+
+u_register_t realm_destroy(realm *realm_vm)
+{
+	u_register_t ret;
+	unsigned int i;
+
+	// if (realm->state == REALM_STATE_NULL) {
+	// 	return REALM_SUCCESS;
+	// }
+
+	// if (realm->state == REALM_STATE_NEW) {
+	// 	goto undo_from_new_state;
+	// }
+
+	// if (realm->state != REALM_STATE_ACTIVE) {
+	// 	kvm_info("[error] Invalid realm state found =0x%x\n", realm->state);
+	// 	return REALM_ERROR;
+	// }
+
+	/* For each REC - Destroy, undelegate and free */
+	for (i = 0; i < realm_vm->num_aux; i++) {
+		set_rec_params(realm_vm->vmid, i);
+		ret = rmi_rec_destroy(realm_vm->rec[i]);
+		if (ret != RMI_SUCCESS) {
+			kvm_info(
+				"[error] REC destroy failed, rec=0x%lx, ret=0x%lx\n",
+				realm_vm->rec[i], ret);
+			return REALM_ERROR;
+		}
+
+		ret = rmi_granule_undelegate(realm_vm->rec[i]);
+		if (ret != RMI_SUCCESS) {
+			kvm_info(
+				"[error] rec undelegation failed, rec=0x%lx, ret=0x%lx\n",
+				realm_vm->rec[i], ret);
+			return REALM_ERROR;
+		}
+	}
+
+	realm_free_rec_aux(realm_vm->aux_pages, realm_vm->num_aux);
+	for (i = 0; i < realm_vm->num_aux; i++) {
+		kfree(realm_vm->rec[i]);
+	}
+
+	/* Free run object */
+	kfree(realm_vm->run);
+
+	/*
+	 * For each data granule - Destroy, undelegate and free
+	 * RTTs (level 1U and below) must be destroyed leaf-upwards,
+	 * using RMI_DATA_DESTROY, RMI_RTT_DESTROY and RMI_GRANULE_UNDELEGATE
+	 * commands.
+	 */
+	// if (realm_tear_down_rtt_range(realm, 0UL, 0UL,
+	// 		(1UL << (EXTRACT(RMM_FEATURE_REGISTER_0_S2SZ,
+	// 		realm->rmm_feat_reg0) - 1))) != RMI_SUCCESS) {
+	// 	kvm_info("[error] realm_tear_down_rtt_range\n");
+	// 	return REALM_ERROR;
+	// }
+	// if (realm_tear_down_rtt_range(realm, 0UL, realm->ipa_ns_buffer,
+	// 		(realm->ipa_ns_buffer + realm->ns_buffer_size)) !=
+	// 		RMI_SUCCESS) {
+	// 	kvm_info("[error] realm_tear_down_rtt_range\n");
+	// 	return REALM_ERROR;
+	// }
+undo_from_new_state:
+
+	/*
+	 * RD Destroy, undelegate and free
+	 * RTT(L0) undelegate and free
+	 * PAR free
+	 */
+	set_realm_params(realm_vm->vmid, realm_vm->num_aux);
+	ret = rmi_realm_destroy(realm_vm->rd);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("[error] Realm destroy failed, rd=0x%lx, ret=0x%lx\n",
+				realm_vm->rd, ret);
+		return REALM_ERROR;
+	}
+
+	ret = rmi_granule_undelegate(realm_vm->rd);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("[error] rd undelegation failed, rd=0x%lx, ret=0x%lx\n",
+				realm_vm->rd, ret);
+		return REALM_ERROR;
+	}
+
+	ret = rmi_granule_undelegate(realm_vm->rtt_addr);
+	if (ret != RMI_SUCCESS) {
+		kvm_info("[error] rtt undelegation failed, rtt_addr=0x%lx, ret=0x%lx\n",
+				realm_vm->rtt_addr, ret);
+		return REALM_ERROR;
+	}
+
+	kfree(realm_vm->rd);
+	kfree(realm_vm->rtt_addr);
+	kfree(realm_vm->par_base);
+
+	return REALM_SUCCESS;
 }

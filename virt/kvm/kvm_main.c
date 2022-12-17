@@ -1164,8 +1164,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		vm_task->sec_vm_info = svi;
 		kvm->arch.sec_vm_id = atomic_inc_return(&sec_vm_cnt) + 1;
 
-		// boot_rmm_realm_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
-		kvm_create_realm_payload(kvm, 1000U);
+		boot_rmm_realm_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
+		// kvm_create_realm_payload(kvm, 1000U);
 	}
 
 	new = old = *slot;
