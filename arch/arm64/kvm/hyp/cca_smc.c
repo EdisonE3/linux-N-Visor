@@ -12,9 +12,10 @@ smc_ret_values asm_tftf_smc64(uint32_t fid,
 
 smc_ret_values tftf_smc(const smc_args *args)
 {
-	uint32_t arg1 = 1999;
+	kvm_info("tftf_smc: fid=%x, args=%lx %lx %lx %lx %lx %lx %lx\n", args->fid,
+		 args->arg1, args->arg2, args->arg3, args->arg4, args->arg5, args->arg6, args->arg7);
 	return asm_tftf_smc64(args->fid,
-			      arg1,
+			      args->arg1,
 			      args->arg2,
 			      args->arg3,
 			      args->arg4,

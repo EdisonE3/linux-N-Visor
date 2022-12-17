@@ -1024,16 +1024,16 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	}
 
 	// init ipa state
-	if (realm_init_ipa_state(realm_vm, 0U, 0U, 1ULL << 32) != REALM_SUCCESS) {
-		kvm_info("[error] realm_init_ipa_state() failed\n");
-		goto destroy_realm;
-	}
+	// if (realm_init_ipa_state(realm_vm, 0U, 0U, 1ULL << 32) != REALM_SUCCESS) {
+	// 	kvm_info("[error] realm_init_ipa_state() failed\n");
+	// 	goto destroy_realm;
+	// }
 
 	// RTT map the Realm Image
-	if (realm_map_payload_image(realm_vm, realm_payload_adr) != REALM_SUCCESS) {
-		kvm_info("[error] realm_map_payload_image() failed\n");
-		goto destroy_realm;
-	}
+	// if (realm_map_payload_image(realm_vm, realm_payload_adr) != REALM_SUCCESS) {
+	// 	kvm_info("[error] realm_map_payload_image() failed\n");
+	// 	goto destroy_realm;
+	// }
 
 	// create rec
 	if (realm_rec_create(realm_vm) != REALM_SUCCESS) {

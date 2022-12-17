@@ -114,7 +114,7 @@ typedef enum {
 
 enum {
     // rmi between kvm and rmm
-	SMC_RMM_VERSION,
+	SMC_RMM_VERSION = 99,
     SMC_RMM_FEATURES,
     SMC_RMM_GRANULE_DELEGATE,
     SMC_RMM_GRANULE_UNDELEGATE,

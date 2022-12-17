@@ -32,8 +32,9 @@ u64 rmi_granule_delegate(u64 addr){
     kvm_info("RMI GRANULE DELEGATE: addr: %lx\n", addr);
 	kvm_info("RMI GRANULE DELEGATE: addr_pa: %lx\n", addr_pa);
     
-    return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_GRANULE_DELEGATE,
-			addr, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL}))).ret0;
+	return RMI_SUCCESS;
+    // return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_GRANULE_DELEGATE,
+	// 		addr_pa, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL}))).ret0;
 }
 
 u64 rmi_granule_undelegate(u64 addr){
@@ -41,8 +42,9 @@ u64 rmi_granule_undelegate(u64 addr){
     kvm_info("RMI GRANULE UNDELEGATE: addr: %lx\n", addr);
 	kvm_info("RMI GRANULE UNDELEGATE: addr_pa: %lx\n", addr_pa);
 
-	return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_GRANULE_UNDELEGATE,
-			addr, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL}))).ret0;
+	return RMI_SUCCESS;
+	// return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_GRANULE_UNDELEGATE,
+	// 		addr, 0UL, 0UL, 0UL, 0UL, 0UL, 0UL}))).ret0;
 }
 
 u64 rmi_realm_activate(u64 rd){
@@ -126,8 +128,9 @@ u64 rmi_rtt_create(u64 rtt, u64 rd, u64 map_addr, u64 level){
 	kvm_info("RMI RTT CREATE: rtt: %lx, rd: %lx, map_addr: %lx, level: %lx\n", rtt, rd, map_addr, level);
 	kvm_info("RMI RTT CREATE: rd_pa: %lx, map_addr_pa: %lx\n", rd_pa, map_addr_pa);
 	
-	return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_RTT_CREATE,
-		rtt, rd, map_addr, level, 0UL, 0UL, 0UL}))).ret0;
+	return RMI_SUCCESS;
+	// return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_RTT_CREATE,
+	// 	rtt, rd, map_addr, level, 0UL, 0UL, 0UL}))).ret0;
 }
 
 u64 rmi_rtt_destroy(u64 rtt, u64 rd, u64 map_addr, u64 level){
@@ -136,8 +139,9 @@ u64 rmi_rtt_destroy(u64 rtt, u64 rd, u64 map_addr, u64 level){
 	kvm_info("RMI RTT DESTROY: rtt: %lx, rd: %lx, map_addr: %lx, level: %lx\n", rtt, rd, map_addr, level);
 	kvm_info("RMI RTT DESTROY: rd_pa: %lx, map_addr_pa: %lx\n", rd_pa, map_addr_pa);
 	
-	return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_RTT_DESTROY,
-		rtt, rd, map_addr, level, 0UL, 0UL, 0UL}))).ret0;
+	return RMI_SUCCESS;
+	// return ((smc_ret_values)(tftf_smc(&(smc_args) {SMC_RMM_RTT_DESTROY,
+	// 	rtt, rd, map_addr, level, 0UL, 0UL, 0UL}))).ret0;
 }
 
 u64 rmi_rec_aux_count(u64 rd, u64 *aux_count){
@@ -227,16 +231,17 @@ u64 realm_create(realm *realm_vm){
 	}
 
     // deal with realm aux
-    ret = rmi_rec_aux_count(realm_vm->rd, &realm_vm->num_aux);
-	if (ret != RMI_SUCCESS) {
-		kvm_info("[error]rmi_rec_aux_count failed, rd=0x%lx, ret=0x%lx\n",
-			 realm_vm->rd, ret);
-		rmi_realm_destroy(realm_vm->rd);
-		goto err_free_params;
-	}
+    // ret = rmi_rec_aux_count(realm_vm->rd, &realm_vm->num_aux);
+	// if (ret != RMI_SUCCESS) {
+	// 	kvm_info("[error]rmi_rec_aux_count failed, rd=0x%lx, ret=0x%lx\n",
+	// 		 realm_vm->rd, ret);
+	// 	rmi_realm_destroy(realm_vm->rd);
+	// 	goto err_free_params;
+	// }
 
     // change the state of realm to REALM_STATE_NEW
     realm_vm->state = REALM_STATE_NEW;
+	realm_vm->num_aux = 4;
 
     // free unuse var parameter
     kfree((u64)params);
@@ -678,11 +683,13 @@ u64 realm_rec_create(realm *realm_vm){
 	rec_params->num_aux = realm_vm->num_aux;
 
 	/* Create REC  */
-	ret = rmi_rec_create(realm_vm->rec, realm_vm->rd,
-			(u_register_t)rec_params);
-	if (ret != RMI_SUCCESS) {
-		kvm_info("[error] REC create failed, ret=0x%lx\n", ret);
-		goto err_free_rec_aux;
+	for (i = 0; i < rec_params->num_aux; i++) {
+		ret = rmi_rec_create(realm_vm->rec, realm_vm->rd,
+				     (u_register_t)rec_params);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("[error] REC create failed, ret=0x%lx\n", ret);
+			goto err_free_rec_aux;
+		}
 	}
 
 	/* Free rec_params */
