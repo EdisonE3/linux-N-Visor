@@ -157,18 +157,12 @@ u64 rmi_rec_aux_count(u64 rd, u64 *aux_count){
 }
 
 //----------------------------------------------------------------------------------
-static kvm_smc_req_t* smc_request_shared_mem(){
+static void set_realm_params(u32 sec_vm_id, u64 nr_vcpu){
+	// request shared memory
 	unsigned int core_id;
 	kvm_smc_req_t *smc_req;
 	core_id = smp_processor_id();
 	smc_req = get_smc_req_region(core_id);
-	return smc_req;
-}
-
-static void set_realm_params(u32 sec_vm_id, u64 nr_vcpu){
-	// request shared memory
-	kvm_smc_req_t *smc_req;
-	smc_req = smc_request_shared_mem();
 
 	// initialize information of smc_req
 	smc_req->sec_vm_id = sec_vm_id;
@@ -181,8 +175,10 @@ static void set_realm_params(u32 sec_vm_id, u64 nr_vcpu){
 
 static void set_rec_params(u32 sec_vm_id, u32 vcpu_id){
 	// request shared memory
+	unsigned int core_id;
 	kvm_smc_req_t *smc_req;
-	smc_req = smc_request_shared_mem();
+	core_id = smp_processor_id();
+	smc_req = get_smc_req_region(core_id);
 
 	// initialize information of smc_req
 	smc_req->sec_vm_id = sec_vm_id;
@@ -670,6 +666,7 @@ u64 realm_rec_create(realm *realm_vm){
 	rmi_rec_params *rec_params = NULL;
 	u_register_t ret;
 	unsigned int i;
+	unsigned int j;
 
 	for (i = 0; i < realm_vm->num_aux; i++) {
 		/* Allocate memory for run object */
@@ -706,10 +703,10 @@ u64 realm_rec_create(realm *realm_vm){
 
 		/* Populate rec_params */
 
-		for (i = 0UL; i < (sizeof(rec_params->gprs) /
+		for (j = 0UL; j < (sizeof(rec_params->gprs) /
 				   sizeof(rec_params->gprs[0]));
-		     i++) {
-			rec_params->gprs[i] = 0x0UL;
+		     j++) {
+			rec_params->gprs[j] = 0x0UL;
 		}
 
 		/* Delegate the required number of auxiliary Granules  */

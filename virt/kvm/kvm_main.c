@@ -1012,10 +1012,10 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 	// TODO: [STOP] mmap the realm_payload_address to Host NS heap memory
 
 	// qeuery realm features is supported
-	if(rmi_features(0, &((*realm_vm).rmm_feat_reg0)) != REALM_SUCCESS){
-		kvm_info("[error] rmi_features() failed\n");
-		goto destroy_realm;
-	}
+	// if(rmi_features(0, &((*realm_vm).rmm_feat_reg0)) != REALM_SUCCESS){
+	// 	kvm_info("[error] rmi_features() failed\n");
+	// 	goto destroy_realm;
+	// }
 
 	// create realm
 	if (realm_create(realm_vm) != REALM_SUCCESS) {
@@ -1164,7 +1164,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		vm_task->sec_vm_info = svi;
 		kvm->arch.sec_vm_id = atomic_inc_return(&sec_vm_cnt) + 1;
 
-		boot_rmm_realm_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
+		// boot_rmm_realm_vm(kvm->arch.sec_vm_id, kvm->created_vcpus);
 		kvm_create_realm_payload(kvm, 1000U);
 	}
 
