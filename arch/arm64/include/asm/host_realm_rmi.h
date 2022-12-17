@@ -264,6 +264,7 @@ enum realm_state {
 };
 
 typedef struct {
+	u64 vmid;
 	u64 par_base;
 	u64 par_size;
 	u64 rd;

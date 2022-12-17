@@ -157,12 +157,51 @@ u64 rmi_rec_aux_count(u64 rd, u64 *aux_count){
 }
 
 //----------------------------------------------------------------------------------
+static kvm_smc_req_t* smc_request_shared_mem(){
+	unsigned int core_id;
+	kvm_smc_req_t *smc_req;
+	core_id = smp_processor_id();
+	smc_req = get_smc_req_region(core_id);
+	return smc_req;
+}
+
+static void set_realm_params(u32 sec_vm_id, u64 nr_vcpu){
+	// request shared memory
+	kvm_smc_req_t *smc_req;
+	smc_req = smc_request_shared_mem();
+
+	// initialize information of smc_req
+	smc_req->sec_vm_id = sec_vm_id;
+	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+	uint64_t qemu_s1ptp;		
+	asm volatile("mrs %0, ttbr0_el1\n\t" : "=r"(qemu_s1ptp));
+	smc_req->boot.qemu_s1ptp = qemu_s1ptp;
+	smc_req->boot.nr_vcpu = nr_vcpu;
+}
+
+static void set_rec_params(u32 sec_vm_id, u32 vcpu_id){
+	// request shared memory
+	kvm_smc_req_t *smc_req;
+	smc_req = smc_request_shared_mem();
+
+	// initialize information of smc_req
+	smc_req->sec_vm_id = sec_vm_id;
+	smc_req->vcpu_id = vcpu_id;
+	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+}
 
 // The following are realm management implementation
-
+static unsigned int vm_count = 2;
 u64 realm_create(realm *realm_vm){
     rmi_realm_params *params;
     u64 ret;
+
+	// assign vmid
+	realm_vm->vmid = vm_count;
+	vm_count++;
+
+	// the number of vcpus
+	realm_vm->num_aux = 4;
 
     // change the state of realm to REALM_STATE_NULL
 	realm_vm->state = REALM_STATE_NULL;
@@ -219,10 +258,11 @@ u64 realm_create(realm *realm_vm){
 	params->rtt_num_start = 1U;
 	params->rtt_base = realm_vm->rtt_addr;
     // TODO: replace it with a variable
-	params->vmid = 1U;
+	params->vmid = realm_vm->vmid;
 	params->hash_algo = RMI_HASH_SHA_256;
 
     // create realm using RMI, requiring rd and parameters
+	set_realm_params(realm_vm->vmid, realm_vm->num_aux);
     ret = rmi_realm_create(realm_vm->rd, (u64)params);
 	if (ret != RMI_SUCCESS) {
 		kvm_info("[error]Realm create failed, rd=0x%lx, ret=0x%lx\n",
@@ -241,7 +281,6 @@ u64 realm_create(realm *realm_vm){
 
     // change the state of realm to REALM_STATE_NEW
     realm_vm->state = REALM_STATE_NEW;
-	realm_vm->num_aux = 4;
 
     // free unuse var parameter
     kfree((u64)params);
@@ -632,69 +671,74 @@ u64 realm_rec_create(realm *realm_vm){
 	u_register_t ret;
 	unsigned int i;
 
-	/* Allocate memory for run object */
-	realm_vm->run = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (realm_vm->run == NULL) {
-		kvm_info("[error] Failed to allocate memory for run\n");
-		return REALM_ERROR;
-	}
-	(void)memset((void *)realm_vm->run, 0x0, PAGE_SIZE);
+	for (i = 0; i < realm_vm->num_aux; i++) {
+		/* Allocate memory for run object */
+		realm_vm->run = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (realm_vm->run == NULL) {
+			kvm_info("[error] Failed to allocate memory for run\n");
+			return REALM_ERROR;
+		}
+		(void)memset((void *)realm_vm->run, 0x0, PAGE_SIZE);
 
-	/* Allocate and delegate REC */
-	realm_vm->rec = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (realm_vm->rec == NULL) {
-		kvm_info("[error] Failed to allocate memory for REC\n");
-		goto err_free_mem;
-	} else {
-		ret = rmi_granule_delegate(realm_vm->rec);
-		if (ret != RMI_SUCCESS) {
-			kvm_info("[error] rec delegation failed, rec=0x%lx, ret=0x%lx\n",
+		/* Allocate and delegate REC */
+		realm_vm->rec = (u_register_t)kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (realm_vm->rec == NULL) {
+			kvm_info("[error] Failed to allocate memory for REC\n");
+			goto err_free_mem;
+		} else {
+			ret = rmi_granule_delegate(realm_vm->rec);
+			if (ret != RMI_SUCCESS) {
+				kvm_info(
+					"[error] rec delegation failed, rec=0x%lx, ret=0x%lx\n",
 					realm_vm->rd, ret);
+				goto err_free_mem;
+			}
+		}
+
+		/* Allocate memory for rec_params */
+		rec_params = (rmi_rec_params *)kmalloc(PAGE_SIZE, GFP_KERNEL);
+		if (rec_params == NULL) {
+			kvm_info(
+				"[error]Failed to allocate memory for rec_params\n");
+			goto err_undelegate_rec;
+		}
+		(void)memset(rec_params, 0x0, PAGE_SIZE);
+
+		/* Populate rec_params */
+
+		for (i = 0UL; i < (sizeof(rec_params->gprs) /
+				   sizeof(rec_params->gprs[0]));
+		     i++) {
+			rec_params->gprs[i] = 0x0UL;
+		}
+
+		/* Delegate the required number of auxiliary Granules  */
+		ret = realm_alloc_rec_aux(realm_vm, rec_params);
+		if (ret != RMI_SUCCESS) {
+			kvm_info("[error] REC realm_alloc_rec_aux, ret=0x%lx\n",
+				 ret);
 			goto err_free_mem;
 		}
-	}
 
-	/* Allocate memory for rec_params */
-	rec_params = (rmi_rec_params *)kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (rec_params == NULL) {
-		kvm_info("[error]Failed to allocate memory for rec_params\n");
-		goto err_undelegate_rec;
-	}
-	(void)memset(rec_params, 0x0, PAGE_SIZE);
+		rec_params->pc = realm_vm->par_base;
+		rec_params->flags = RMI_RUNNABLE;
+		rec_params->mpidr = 0x0UL;
+		rec_params->num_aux = realm_vm->num_aux;
 
-	/* Populate rec_params */
-	
-	for (i = 0UL; i < (sizeof(rec_params->gprs) /
-			sizeof(rec_params->gprs[0]));
-			i++) {
-		rec_params->gprs[i] = 0x0UL;
-	}
-
-	/* Delegate the required number of auxiliary Granules  */
-	ret = realm_alloc_rec_aux(realm_vm, rec_params);
-	if (ret != RMI_SUCCESS) {
-		kvm_info("[error] REC realm_alloc_rec_aux, ret=0x%lx\n", ret);
-		goto err_free_mem;
-	}
-
-	rec_params->pc = realm_vm->par_base;
-	rec_params->flags = RMI_RUNNABLE;
-	rec_params->mpidr = 0x0UL;
-	rec_params->num_aux = realm_vm->num_aux;
-
-	/* Create REC  */
-	for (i = 0; i < rec_params->num_aux; i++) {
+		/* Create REC  */
+		set_rec_params(realm_vm->vmid, i);
 		ret = rmi_rec_create(realm_vm->rec, realm_vm->rd,
 				     (u_register_t)rec_params);
 		if (ret != RMI_SUCCESS) {
 			kvm_info("[error] REC create failed, ret=0x%lx\n", ret);
 			goto err_free_rec_aux;
 		}
+
+		/* Free rec_params */
+		kvm_info("REC %u create success\n", i);
+		kfree((u_register_t)rec_params);
 	}
 
-	/* Free rec_params */
-	kvm_info("REC create success\n");
-	kfree((u_register_t)rec_params);
 	return REALM_SUCCESS;
 
 err_free_rec_aux:
