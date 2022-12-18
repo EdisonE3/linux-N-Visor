@@ -166,7 +166,7 @@ static void set_realm_params(u32 sec_vm_id, u64 nr_vcpu){
 
 	// initialize information of smc_req
 	smc_req->sec_vm_id = sec_vm_id;
-	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+	smc_req->req_type = REQ_KVM_TO_RMM_HANDLER;
 	uint64_t qemu_s1ptp;		
 	asm volatile("mrs %0, ttbr0_el1\n\t" : "=r"(qemu_s1ptp));
 	smc_req->boot.qemu_s1ptp = qemu_s1ptp;
@@ -182,7 +182,7 @@ static void set_params_vmid(u32 sec_vm_id){
 
 	// initialize information of smc_req
 	smc_req->sec_vm_id = sec_vm_id;
-	smc_req->req_type = REQ_KVM_TO_S_VISOR_BOOT;
+	smc_req->req_type = REQ_KVM_TO_RMM_HANDLER;
 }
 
 // The following are realm management implementation
