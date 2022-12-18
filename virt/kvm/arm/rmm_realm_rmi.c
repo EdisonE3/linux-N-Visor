@@ -173,7 +173,7 @@ static void set_realm_params(u32 sec_vm_id, u64 nr_vcpu){
 	smc_req->boot.nr_vcpu = nr_vcpu;
 }
 
-static void set_rec_params(u32 sec_vm_id){
+static void set_params_vmid(u32 sec_vm_id){
 	// request shared memory
 	unsigned int core_id;
 	kvm_smc_req_t *smc_req;
@@ -718,7 +718,7 @@ u64 realm_rec_create(realm *realm_vm){
 	rec_params->num_aux = realm_vm->num_aux;
 
 	/* Create REC  */
-	set_rec_params(realm_vm->vmid);
+	set_params_vmid(realm_vm->vmid);
 	ret = rmi_rec_create(realm_vm->rec, realm_vm->rd,
 			     (u_register_t)rec_params);
 	if (ret != RMI_SUCCESS) {
@@ -761,6 +761,7 @@ u_register_t realm_activate(realm *realm_vm)
 	u_register_t ret;
 
 	/* Activate Realm  */
+	set_params_vmid(realm_vm->vmid);
 	ret = rmi_realm_activate(realm_vm->rd);
 	if (ret != RMI_SUCCESS) {
 		kvm_info("[error] Realm activate failed, ret=0x%lx\n", ret);
@@ -823,7 +824,7 @@ u_register_t realm_destroy(realm *realm_vm)
 
 	/* For each REC - Destroy, undelegate and free */
 
-	set_rec_params(realm_vm->vmid);
+	set_params_vmid(realm_vm->vmid);
 	ret = rmi_rec_destroy(realm_vm->rec);
 	if (ret != RMI_SUCCESS) {
 		kvm_info("[error] REC destroy failed, rec=0x%lx, ret=0x%lx\n",
@@ -870,7 +871,7 @@ undo_from_new_state:
 	 * RTT(L0) undelegate and free
 	 * PAR free
 	 */
-	set_realm_params(realm_vm->vmid, realm_vm->num_aux);
+	set_params_vmid(realm_vm->vmid);
 	ret = rmi_realm_destroy(realm_vm->rd);
 	if (ret != RMI_SUCCESS) {
 		kvm_info("[error] Realm destroy failed, rd=0x%lx, ret=0x%lx\n",
