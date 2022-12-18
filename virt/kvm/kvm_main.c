@@ -1004,6 +1004,7 @@ bool kvm_create_realm_payload(struct kvm *kvm, u64 realm_payload_adr){
 
 	// malloc for realm vm structure
 	realm_vm = kmalloc(sizeof(realm), GFP_KERNEL);
+	kvm->arch.realm_vm = realm_vm;
 
 	// TODO: check the range of realm_payload_address
 

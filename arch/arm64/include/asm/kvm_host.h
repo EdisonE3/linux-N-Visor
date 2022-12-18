@@ -144,6 +144,9 @@ struct kvm_arch {
 
 	/* secure vm id  */
 	u32 sec_vm_id;
+
+	/* realm */
+	realm* realm_vm;
 };
 
 #define KVM_NR_MEM_OBJS     40
