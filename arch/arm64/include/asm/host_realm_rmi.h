@@ -7,8 +7,6 @@
 #define REALM_ERROR			1U
 #define REALM_MAX_LOAD_IMG_SIZE 0x100000U
 
-#define MAX_VCPU_NUM 8
-
 /* Maximum number of auxiliary granules required for a REC */
 #define MAX_REC_AUX_GRANULES		16U
 #define REC_PARAMS_AUX_GRANULES		16U
@@ -271,7 +269,7 @@ typedef struct {
 	u64 par_size;
 	u64 rd;
 	u64 rtt_addr;
-	u64 rec[MAX_VCPU_NUM];
+	u64 rec;
 	u64 run;
 	u64 num_aux;
 	u64 rmm_feat_reg0;
