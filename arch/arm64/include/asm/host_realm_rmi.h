@@ -12,6 +12,8 @@
 #define REC_PARAMS_AUX_GRANULES		16U
 #define REC_EXIT_NR_GPRS		31U
 
+#define REC_MAX_NUM		8U
+
 /* Size of Realm Personalization Value */
 #define RPV_SIZE			64U
 
@@ -269,7 +271,8 @@ typedef struct {
 	u64 par_size;
 	u64 rd;
 	u64 rtt_addr;
-	u64 rec;
+	u64 rec[REC_MAX_NUM];
+	u64 rec_count;
 	u64 run;
 	u64 num_aux;
 	u64 rmm_feat_reg0;
